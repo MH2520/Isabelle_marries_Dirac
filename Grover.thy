@@ -33,9 +33,12 @@ locale grover =
   assumes searched_dom: "x \<in> {(i::nat). i < 2^n}"
   assumes searched: "\<forall>i < 2^n. f(i) = 1 \<longleftrightarrow> i=x" 
 (*Rephrase this without H on one in more general form? See if we need it*)
-  assumes q_oracle_app: "\<forall>(A::nat\<Rightarrow>complex).  q_oracle (Matrix.mat (2^n) 1 (\<lambda>(i,j). A i) \<Otimes> (H * |one\<rangle>)) 
-                         = Matrix.mat (2^(n+1)) 1 (\<lambda>(i,j). if (even i) then (-(1::nat))^f(i div 2) * A i 
-                                      else (-(1::nat))^(f(i div 2)+1)* A i)"
+  assumes q_oracle_app: "\<forall>(A::nat\<Rightarrow>complex).  q_oracle (Matrix.mat (2^n) 1 (\<lambda>(i,j). A i) \<Otimes> (H * |one\<rangle>))
+                         = (Matrix.mat (2^n) 1 (\<lambda>(i,j). (-(1::nat))^f(i) * (A i)))  \<Otimes> (H * |one\<rangle>)"
+
+(*"\<forall>(A::nat\<Rightarrow>complex).  q_oracle (Matrix.mat (2^n) 1 (\<lambda>(i,j). A i) \<Otimes> (H * |one\<rangle>))
+                         = Matrix.mat (2^(n+1)) 1 (\<lambda>(i,j). if (even i) then (-(1::nat))^f(i div 2) * (A i) 
+                                      else (-(1::nat))^(f(i div 2)+1)* (A i))"*)
 
 
 context grover
@@ -82,13 +85,37 @@ lemma q_oracle_on_x:
 proof-
    have "q_oracle (Matrix.mat (2^n) 1 (\<lambda>(i,j). A i) \<Otimes> (H * |one\<rangle>)) $$(i,j) = (Matrix.mat (2^(n+1)) 1 (\<lambda>(i,j). if (even i) then (-1)^f(i div 2) * A i 
                                       else (-1)^(f(i div 2)+1)* A i)) $$(i,j)" 
-    using assms q_oracle_app by auto
+     using assms q_oracle_app by auto
+   have "i< dim_row (Matrix.mat (2^(n+1)) 1 (\<lambda>(i,j). if (even i) then (-(1::nat))^f(i div 2) * A i 
+                                      else (-(1::nat))^(f(i div 2)+1)* A i))"
+    and "j< dim_col (Matrix.mat (2^(n+1)) 1 (\<lambda>(i,j). if (even i) then (-(1::nat))^f(i div 2) * A i 
+                                      else (-(1::nat))^(f(i div 2)+1)* A i))" sorry
   then have "(Matrix.mat (2^(n+1)) 1 (\<lambda>(i,j). if (even i) then (-(1::nat))^f(i div 2) * A i 
                                       else (-(1::nat))^(f(i div 2)+1)* A i)) $$(i,j) = (-(1::nat))^(f(i div 2)+1)* A i"
-    using assms sledgehammer
+    using assms apply auto
 qed
 
 end (*context grover*)
+
+
+
+definition(in grover) diffusion_operator::"complex Matrix.mat" where
+"diffusion_operator = Matrix.mat (2^n) (2^n) (\<lambda>(i,j). if i=j then ((1-2^n)/2^(n-1)) else 1/(2^(n-1)))"
+
+notation(in grover) diffusion_operator ("D")
+
+
+
+definition(in grover) test::"nat\<Rightarrow>nat\<Rightarrow>complex Matrix.mat" where
+"test \<alpha> \<beta> = Matrix.mat (2^n) (2^n) (\<lambda>(i,j). if i=x then \<alpha> else -\<beta>)"
+
+
+lemma 
+  fixes \<alpha> \<beta>::nat
+  shows "D (test \<alpha> \<beta>) = Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then (\<alpha>+(1-2^n)/2^(n-1)*\<beta>) else (-3/2*\<alpha>+(1-2^n)/(2^(n-1))*\<beta>))"
+  sorry
+
+
 
 
 abbreviation(in grover) start_state:: "complex Matrix.mat" where
