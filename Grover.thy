@@ -343,16 +343,20 @@ proof-
         times_divide_eq_left times_divide_eq_right uminus_add_conv_diff)
   then have "... \<ge> (-(1/2) + 1/2*sqrt(3/(2^n-1)) * (2^n-1))*1/2^(n-1)" 
     by (simp add: real_sqrt_divide)
-  then have "(-(1/2) + 1/2*sqrt(3/(2^n-1)) * (2^n-1)) = ( 1/2 * (-1 + sqrt(3/(2^n-1)))) * (2^n-1)" 
-    sledgehammer
-  
-  then have "(-(1/2) + sqrt(3/(4*(2^n-1))) * (2^n-1))*1/2^(n-1)
-               \<ge> (-(1/2) + sqrt(3/(4*(2^n-1))) * sqrt((2^n-1)\<^sup>2))* 1/2^(n-1)" 
+  moreover have "(-(1/2) + 1/2*sqrt(3/(2^n-1)) * (2^n-1)) = 1/2 * (-1 + sqrt(3/(2^n-1)) * (2^n-1))" 
+    by simp
+  moreover have "(-(1/2) + 1/2*sqrt(3/(2^n-1)) * (2^n-1))*1/2^(n-1) = (1/2 * (-1 + sqrt(3/(2^n-1)) * (2^n-1))) *1/2^(n-1)" 
+    using calculation by presburger
+  ultimately have "((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) \<ge> (1/2 * (-1 + sqrt(3/(2^n-1)) * (2^n-1))) *1/2^(n-1)" by auto
+  then have "... \<ge> (-1 + sqrt(3/(2^n-1)) * sqrt((2^n-1)\<^sup>2)) *1/2/2^(n-1)"            
     using assms by auto
-  then have "... \<ge> (-(1/2) + sqrt(3*(2^n-1)\<^sup>2/(4*(2^n-1))))* 1/2^(n-1)" 
+  then have f1: "... \<ge> (-1 + sqrt(3*(2^n-1)\<^sup>2/(2^n-1))) *1/2/2^(n-1)" 
     by (metis (mono_tags, hide_lams) real_sqrt_mult times_divide_eq_left)
-  moreover have "(-(1/2) + sqrt(3*(2^n-1)\<^sup>2/(4*(2^n-1))))* 1/2^(n-1)
-                =(-(1/2) + sqrt(3*(2^n-1)/4))* 1/2^(n-1) " sorry
+  have "(2^n-1) \<ge> 1" sorry
+  moreover have "(2^n-1)\<^sup>2/(2^n-1) = (2^n-1)" sorry
+  ultimately have "sqrt(3*(2^n-1)\<^sup>2/(2^n-1)) = sqrt(3*(2^n-1))" using dim sorry
+ 
+
 
 
 
