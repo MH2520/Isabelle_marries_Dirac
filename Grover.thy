@@ -23,8 +23,9 @@ lemma ket_one_is_state:
   by (simp add: state_def ket_vec_def cpx_vec_length_def numerals(2))
 
 locale grover =
-  fixes f:: "nat \<Rightarrow> nat" and n::nat and x:: "nat" 
+  fixes f:: "nat \<Rightarrow> nat" and n::nat and x:: "nat" (*Would it be better to do it with *? *)
   fixes q_oracle :: "complex Matrix.mat \<Rightarrow> complex Matrix.mat"
+  fixes q_oracle' :: "complex Matrix.mat"
   assumes fun_dom: "f \<in> ({(i::nat). i < 2^n} \<rightarrow>\<^sub>E {0,1})"
   assumes dim: "n\<ge>1"
   assumes searched_dom: "x \<in> {(i::nat). i < 2^n}"
@@ -78,7 +79,7 @@ definition(in grover) diffusion_operator::"complex Matrix.mat" where
 notation(in grover) diffusion_operator ("D")
 
 lemma (in grover) app_oracle:
-  fixes \<alpha> \<beta>::nat
+  fixes \<alpha> \<beta>::real
   assumes "v = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))"
   assumes "w = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -\<alpha> else \<beta>))"
   shows "q_oracle (v \<Otimes> (H * |one\<rangle>)) = (w \<Otimes> (H * |one\<rangle>))"
@@ -260,10 +261,50 @@ proof-
         mult.commute semiring_normalization_rules(24) times_divide_eq_right uminus_add_conv_diff)
 qed
 
+lemma (in grover) app_diffusion_op_res:
+  fixes \<alpha> \<beta>::real 
+  assumes "v = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -\<alpha> else \<beta>))"
+    and "w = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>
+                                             else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> ))"
+    and "state n v" 
+  shows "(D \<Otimes> Id 1) * (v \<Otimes> (H * |one\<rangle>)) = w \<Otimes> (H * |one\<rangle>)" 
+proof-
+  have "dim_col (Id 1) = dim_row (H * |one\<rangle>)" 
+    using assms Id_def
+    by (simp add: H_without_scalar_prod)
+  moreover have "dim_col D = dim_row v" 
+    using assms diffusion_operator_def by auto
+  moreover have "dim_col D > 0" and "dim_col v > 0" and "dim_col (Id 1) > 0" and  "dim_col (H * |one\<rangle>) > 0" 
+    using assms diffusion_operator_def Id_def ket_vec_def by auto
+  ultimately have "(D \<Otimes> Id 1) * (v \<Otimes> (H * |one\<rangle>)) = (D * v) \<Otimes> (Id 1 * (H * |one\<rangle>))" 
+    using mult_distr_tensor by auto
+  moreover have "(Id 1 * (H * |one\<rangle>)) = (H * |one\<rangle>)" 
+    using right_mult_one_mat H_on_ket_one_is_\<psi>\<^sub>1\<^sub>1 Quantum.Id_def by auto
+  ultimately show "(D \<Otimes> Id 1) * (v \<Otimes> (H * |one\<rangle>)) = w \<Otimes> (H * |one\<rangle>)" using app_diffusion_op assms by auto
+qed
+
+lemma (in grover) app_diffusion_op_pos:
+  fixes \<alpha> \<beta>::real
+  assumes "\<alpha>\<ge>0 \<and> \<beta>\<ge>0"
+  shows "((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta> \<ge> 0" using assms by auto
+ (* and "1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> \<ge> 0" oops*)
+(*proof-
+  show "((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta> \<ge> 0" 
+    using assms by auto
+next
+  show "1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> \<ge> 0" using assms oops 
+(*need to use lower bound on beta. Is there lower bound on alpha?*)
+  qed*)
+
+
+
+
+(*Split up in two defs amplitude does not involve squaring*)
 definition (in grover) amplitude_x ::"complex Matrix.mat \<Rightarrow> real"  where
 "amplitude_x v \<equiv> (cmod(v $$ (x,0)))\<^sup>2"
 
 notation(in grover) amplitude_x ("amp") (*Rather ampx or amp_x?*)
+
 
 lemma divide_le:
   fixes a b c::real
@@ -311,28 +352,99 @@ proof-
 qed
 
 
-lemma (in grover) lower_bound_on_mean: (*also style does not work why? Would be helpful*)
+lemma (in grover) upper_bound_\<beta>_expr: (*was part of next lemma lower_bound_on_mean but made it comlicated *)
   fixes \<alpha> \<beta>::real 
-  assumes "v = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))" (*All assumptions needed?*)
+  assumes "v = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))"
       and "state n v" 
-      and "\<alpha> \<le> 1/2" and "n\<ge>2" and "\<beta>\<ge>0" and "\<alpha>\<ge>0" (*might be possible to take this one out*)
-  shows "((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) \<ge> 1/(2*(sqrt(2)^n))"
+      and "\<alpha> \<le> 1/2" and "n\<ge>2" and "\<beta>\<ge>0" and "\<alpha>\<ge>0" 
+    shows "\<beta>*((2^n-1))/2^(n-1) \<ge> sqrt(3/(4*(2^n-1))) * (2^n-1)/2^(n-1)" 
 proof-
-  have "((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) = -\<alpha>/2^(n-1) + ((2^n-1)*\<beta>)/2^(n-1)" 
-    using add_divide_distrib by blast
-  then have f0: "((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) = -\<alpha>/2^(n-1) + \<beta>*((2^n-1))/2^(n-1)" 
-    by auto
   have "amp v = (cmod (\<alpha>))\<^sup>2" using amplitude_x_def assms searched_dom by auto
   then have "amp v \<le> 1/4" 
     using amplitude_x_def assms searched_dom cmod_def 
     by (smt cmod_power2 norm_of_real real_sqrt_divide real_sqrt_four real_sqrt_less_iff real_sqrt_one)
   moreover have "((2^n-1))/2^(n-1) \<ge> (1::nat)" using assms h1 by auto
   moreover have "\<beta> \<ge> sqrt(3/(4*(2^n-1)))" using lower_bound_on_\<beta>[of v \<alpha> \<beta>] assms calculation by auto
-  ultimately have "\<beta>*((2^n-1))/2^(n-1) \<ge> sqrt(3/(4*(2^n-1))) * (2^n-1)/2^(n-1)" 
+  ultimately show "\<beta>*((2^n-1))/2^(n-1) \<ge> sqrt(3/(4*(2^n-1))) * (2^n-1)/2^(n-1)" 
     using assms  
     by (simp add: divide_right_mono two_realpow_ge_one)
+qed
+
+
+(*As n has to be at least 1 we introduce a modified introduction rule *)
+lemma ind_from_2:
+  assumes "n \<ge> 2"
+  assumes "P(2)" 
+  assumes "\<And>n. n \<ge> 2 \<Longrightarrow>  P n \<Longrightarrow> P (Suc n)"
+  shows " P n"
+  using nat_induct_at_least assms by auto
+
+lemma lower_bound_h1: (*What name would be appropriate?*)
+  fixes n
+  assumes "n\<ge>2"
+  shows "(sqrt(3*(2^n-1))-1) *1/2^n \<ge> 1/(sqrt 2)^n"
+proof-
+  have "sqrt(3*2^n-3)-1 \<ge> sqrt(2^n)" 
+  proof (induction n rule: ind_from_2){
+    show "n\<ge>2" using assms by auto
+  next
+    show  "sqrt(3*2^2-3)-1 \<ge> sqrt(2^2)" by simp
+  next
+    fix n
+    assume a0: "n\<ge>2" 
+       and IH: "sqrt(3*2^n-3)-1 \<ge> sqrt(2^n)"
+    (*also style does not work. Would be so good here :( *)
+    then have "sqrt(3*2^(Suc n)-3)-1 \<ge> sqrt(2*(3*2^n-3))-1" by simp
+    moreover have "sqrt(2*(3*2^n-3))-1 = sqrt(2)*sqrt(3*2^n-3)-1" 
+      by (metis real_sqrt_mult)
+    moreover have "sqrt(2)*sqrt(3*2^n-3)-1 \<ge> sqrt(2)*sqrt(3*2^n-3)-sqrt(2)" by auto
+    moreover have "sqrt(2)*sqrt(3*2^n-3)-sqrt(2) = sqrt(2)*(sqrt(3*2^n-3)-1)" 
+      using right_diff_distrib'[of "sqrt(2)" "sqrt(3*2^n-3)" "1" ] by auto
+    moreover have "sqrt(2)*(sqrt(3*2^n-3)-1) \<ge> sqrt(2)*sqrt(2^n)" using IH by auto
+    moreover have "sqrt(2)*sqrt(2^n) \<ge> sqrt(2^(Suc n))" 
+      using real_sqrt_mult by auto
+    ultimately show "sqrt(3*2^(Suc n)-3)-1 \<ge> sqrt(2^(Suc n))" 
+       by linarith
+   }qed
+  then have "(-1 + sqrt(3*(2^n-1))) *1/2^n \<ge> sqrt(2^n)*1/2^n" 
+    by (simp add: divide_right_mono)
+  moreover have "1/(sqrt 2)^n = (sqrt 2)^n/2^n"
+  proof (induction n rule: ind_from_2){
+    show "n\<ge>2" using assms by auto
+  next
+    show "1/(sqrt 2)^2 = (sqrt 2)^2/2^2" by simp
+  next
+    fix n
+    assume a0: "n\<ge>2" 
+       and IH: "1/(sqrt 2)^n = (sqrt 2)^n/2^n" 
+    then have "1/(sqrt 2)^(Suc n) = 1/(sqrt 2)^n * 1/sqrt(2)" 
+      by (metis divide_divide_eq_left' mult.right_neutral power_Suc) 
+    moreover have "1/(sqrt 2)^n * 1/sqrt(2) = (sqrt 2)^n/2^n * 1/sqrt(2)" using IH by auto
+    moreover have "1/sqrt(2) = sqrt(2)/2" 
+      by (metis div_by_1 divide_divide_eq_right num_double numeral_times_numeral real_divide_square_eq 
+          real_sqrt_divide real_sqrt_four) 
+    ultimately show "1/(sqrt 2)^(Suc n) = (sqrt 2)^(Suc n)/2^(Suc n)" 
+      by (metis power_divide power_one_over) 
+  }qed
+  moreover have "sqrt(2^n)*1/2^n\<ge>(sqrt 2)^n/2^n"
+    by (simp add: real_sqrt_power)
+  ultimately show "(sqrt(3*(2^n-1))-1) *1/2^n \<ge> 1/(sqrt 2)^n" 
+    by simp
+qed
+
+lemma (in grover) lower_bound_on_mean: (*also style does not work why? Would be helpful*)
+  fixes \<alpha> \<beta>::real 
+  assumes "v = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))" (*All assumptions needed?*)
+      and "state n v" 
+      and "\<alpha> \<le> 1/2" and "n\<ge>2" and "\<beta>\<ge>0" and "\<alpha>\<ge>0" (*might be possible to take this one out*)
+  shows "((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) \<ge> 1/(sqrt(2)^n)"
+proof-
+  have "((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) = -\<alpha>/2^(n-1) + ((2^n-1)*\<beta>)/2^(n-1)" 
+    using add_divide_distrib by blast
+  then have "((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) = -\<alpha>/2^(n-1) + \<beta>*((2^n-1))/2^(n-1)" 
+    by auto
   then have "((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) \<ge> -\<alpha>/2^(n-1) + sqrt(3/(4*(2^n-1))) * (2^n-1)/2^(n-1)" 
-    using f0 by auto
+    using upper_bound_\<beta>_expr[of v \<alpha> \<beta>] assms by auto
   then have "... \<ge> -(1/2)/2^(n-1) + sqrt(3/(4*(2^n-1))) * (2^n-1)/2^(n-1)" 
     using assms amplitude_x_def 
     by (smt divide_right_mono zero_le_power)
@@ -352,36 +464,95 @@ proof-
     using assms by auto
   then have f1: "... \<ge> (-1 + sqrt(3*(2^n-1)\<^sup>2/(2^n-1))) *1/2/2^(n-1)" 
     by (metis (mono_tags, hide_lams) real_sqrt_mult times_divide_eq_left)
-  have "(2^n-1) \<ge> 1" sorry
-  moreover have "(2^n-1)\<^sup>2/(2^n-1) = (2^n-1)" sorry
-  ultimately have "sqrt(3*(2^n-1)\<^sup>2/(2^n-1)) = sqrt(3*(2^n-1))" using dim sorry
- 
-
-
-
-
-  finally have "((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) \<ge> (-(1/2) + sqrt(3*2^n-3))/2^(n-1)" sorry
-  then show "((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) \<ge> 1/(2*(sqrt(2)^n))" sorry
+  have "((2::real)^n-1)\<^sup>2/(2^n-1) = (2^n-1)" using dim 
+    by (simp add: power2_eq_square)
+  then have "sqrt(3*(2^n-1)\<^sup>2/(2^n-1)) = sqrt(3*(2^n-1))"
+    by (metis times_divide_eq_right)
+  then have "((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) \<ge> (-1 + sqrt(3*(2^n-1))) *1/2/2^(n-1)"  
+    using f1 by auto
+  moreover have "(-1 + sqrt(3*(2^n-1))) *1/2/2^(n-1) = (sqrt(3*(2^n-1))-1) *1/2^n" 
+    by (smt dim divide_divide_eq_left le_add_diff_inverse power_add power_one_right)
+  ultimately have "((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) \<ge> (sqrt(3*(2^n-1))-1) *1/2^n" by auto
+  then show "((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) \<ge> 1/(sqrt(2)^n)" 
+    using lower_bound_h1 assms 
+    by fastforce
 qed
 
-
-lemma (in grover)
-  fixes \<alpha> \<beta>::real (*In the end I might change these to complex, or make lemma that shows that always real*) 
+(*\<alpha>, \<beta> positiv makes it easy :( *) 
+lemma (in grover) lower_bound_increase_amp_x:
+  fixes \<alpha> \<beta>::real 
   assumes "v = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))"
       and "state n v" 
-      and "amp v \<le> 1/4" and "n\<ge>2" and "\<beta>\<ge>0"
-    shows "amp (D * (q_oracle v)) \<ge> amp v + 1/(sqrt(2)^n)"
-  oops
-(*Show by induction that \<beta> is positiv after each round*)
+      and "\<alpha> \<le> 1/2" and "n\<ge>2" and "\<beta>\<ge>0" and "\<alpha>\<ge>0" 
+    shows "((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>  \<ge> 1/(sqrt(2)^n) + \<alpha>"
+proof-
+  have "((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta> = ((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) + \<alpha>"
+    using app_diffusion_op_index_x_recurence by auto
+  moreover have "((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) + \<alpha> \<ge> 1/(sqrt(2)^n) + \<alpha>" 
+    using lower_bound_on_mean assms by auto
+  ultimately show "((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>  \<ge> 1/(sqrt(2)^n) + \<alpha>" by simp
+qed
+
+lemma  (in grover) upper_bound_increase_amp_x:
+  fixes \<alpha> \<beta>::real 
+  assumes "v = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))"
+      and "state n v" 
+      and "\<alpha> \<le> 1/2" and "n\<ge>2" and "\<beta>\<ge>0" and "\<alpha>\<ge>0" 
+    shows "((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta> \<le> \<alpha> + 2/sqrt(n)"
+  sorry
+
+
+
+
+
+
+
+
 
 
 
 abbreviation(in grover) start_state:: "complex Matrix.mat" where
 "start_state \<equiv> (\<psi>\<^sub>1\<^sub>0 n)*(H * |one\<rangle>)"
 
-primrec(in grover) grover_iteration::"nat\<Rightarrow>complex Matrix.mat\<Rightarrow>complex Matrix.mat" where
+(*primrec would also work why does fun give error?*)
+primrec (in grover) grover_iteration::"nat\<Rightarrow>complex Matrix.mat\<Rightarrow>complex Matrix.mat" where
 "grover_iteration 0 v = v"|
-"grover_iteration (Suc n) v = grover_iteration n (D * (q_oracle v)) "
+"grover_iteration (Suc m) v = (D\<Otimes>Id 1) * q_oracle' * (grover_iteration m v)"
+
+
+lemma (in grover)
+  assumes "i\<le>2^n" 
+  shows "(grover_iteration (Suc m) v)$$(i * 2,0) 
+= 1/sqrt(2)*(((2^(n-1)-1)/2^(n-1))*((grover_iteration m v)$$(i * 2,0)) 
+            + (2^n-1)/(2^(n-1))*((grover_iteration m v)$$(i * 2,0))) "
+proof (induction m)
+  fix m::nat
+  assume IH: "(grover_iteration (Suc m) v)$$(i * 2,0) 
+            = 1/sqrt(2)*(((2^(n-1)-1)/2^(n-1))*((grover_iteration m v)$$(i * 2,0)) 
+            + (2^n-1)/(2^(n-1))*((grover_iteration m v)$$(i * 2,0))) "
+  then have "(grover_iteration (Suc (Suc m)) v)$$(i * 2,0) 
+           = ((D\<Otimes>Id 1) * q_oracle' * (grover_iteration (Suc m) v))$$(i * 2,0)" by auto
+  then have "((D\<Otimes>Id 1) * (q_oracle' * (grover_iteration (Suc m) v)))$$(i * 2,0)
+           = 0"
+
+
+lemma (in grover)
+  assumes "state (n+1) v" and "i\<le>2^n" 
+  shows " ((grover_iteration m v)$$(i * 2,0)) \<ge> 0" 
+proof (induction m)
+  fix m::nat
+  assume IH: "(grover_iteration m v)$$(x * 2,0) \<ge> 0" 
+  then have "grover_iteration (Suc m) v = D * q_oracle' * (grover_iteration m v)" by simp
+  then have "grover_iteration (Suc m) v 
+qed
+
+
+
+
+lemma (in grover)
+  shows "grover_iteration n (D * (q_oracle v))$$(x * 2,0) \<le> 1/2" sorry
+
+
 
 lemma (in grover)
   shows "(grover_iteration iterations start_state) = end" (*Find out what end is*)
@@ -400,34 +571,6 @@ lemma (in grover)
 
 
 
-
-
-
-
-(* assume a2: "i=x" 
-    moreover have "(\<Sum> k \<in> {0 ..< 2^n}. (Matrix.row D i) $ k * (Matrix.col v j) $ k) = 
-                   (\<Sum> k \<in> ({0 ..< 2^n}-{i}). (Matrix.row D i) $ k * (Matrix.col v j) $ k)
-                 + (Matrix.row D i) $ i * (Matrix.col v j) $ i" 
-      by (simp add: f0 sum_diff1)
-    moreover have "i\<noteq>k \<and> k<2^n \<longrightarrow> (Matrix.row D i) $ k * (Matrix.col v j) $ k = 1/((2::nat)^(n-1)) * \<beta>" for k::nat
-      using assms diffusion_operator_def a2 f0 by auto
-    moreover have "i=k \<and> k<2^n \<longrightarrow> (Matrix.row D i) $ i * (Matrix.col v j) $ i = ((1-(2::nat)^n)/(2::nat)^(n-1)) * (-\<alpha>)" for k::nat
-      using assms diffusion_operator_def by auto
-    ultimately have "(\<Sum> k \<in> {0 ..< 2^n}. (Matrix.row D i) $ k * (Matrix.col v j) $ k) = 
-                     (\<Sum> k \<in> ({0 ..< 2^n}-{i}).  1/((2::nat)^(n-1)) * \<beta>)
-                   + ((1-(2::nat)^n)/(2::nat)^(n-1)) * (-\<alpha>)" 
-      using assms diffusion_operator_def a2 f0 by auto
-  moreover have "(\<Sum> k \<in> ({0 ..< 2^n}-{i}).  1/((2::nat)^(n-1)) * \<beta>) = of_nat (2 ^ n - Suc 0) * of_nat \<beta> / 2 ^ (n - Suc 0)" 
-    using sum_without_x[of i "2^n" "1/((2::nat)^(n-1)) * \<beta>"] dim f0 by auto
-  moreover have "of_nat (2 ^ n - Suc 0) * of_nat \<beta> / 2 ^ (n - Suc 0) = (2 ^ n - Suc 0) * \<beta> / 2 ^ (n - Suc 0)" by simp
-  ultimately have "(\<Sum> k \<in> {0 ..< 2^n}. (Matrix.row D i) $ k * (Matrix.col v j) $ k)
-                    = (2 ^ n - Suc 0) * \<beta> / 2 ^ (n - Suc 0)  + ((1-(2::nat)^n)/(2::nat)^(n-1)) * (-\<alpha>)" 
-    by presburger
-  moreover have "w $$ (i,j) = ((2::nat)^n-1)/(2::nat)^(n-1)*\<beta> +((1-(2::nat)^n)/(2::nat)^(n-1))*(-\<alpha>)" 
-    using assms a2 a0 a1 by auto 
-  ultimately have  "(D * v) $$ (i,j) = w $$ (i,j)" using f1 by simp
-
-*)
 
 
 
