@@ -512,28 +512,43 @@ lemma  (in grover) upper_bound_increase_amp_x:
 
 
 abbreviation(in grover) start_state:: "complex Matrix.mat" where
-"start_state \<equiv> (\<psi>\<^sub>1\<^sub>0 n)*(H * |one\<rangle>)"
+"start_state \<equiv> (\<psi>\<^sub>1\<^sub>0 n)\<Otimes>(H * |one\<rangle>)"
 
-(*primrec would also work why does fun give error?*)
 primrec (in grover) grover_iteration::"nat\<Rightarrow>complex Matrix.mat\<Rightarrow>complex Matrix.mat" where
 "grover_iteration 0 v = v"|
 "grover_iteration (Suc m) v = (D\<Otimes>Id 1) * q_oracle' * (grover_iteration m v)"
 
 
 lemma (in grover)
-  assumes "i\<le>2^n" 
-  shows "(grover_iteration (Suc m) v)$$(i * 2,0) 
-= 1/sqrt(2)*(((2^(n-1)-1)/2^(n-1))*((grover_iteration m v)$$(i * 2,0)) 
-            + (2^n-1)/(2^(n-1))*((grover_iteration m v)$$(i * 2,0))) "
+  assumes "i\<le>2^n" and "i\<noteq>x"
+  and "\<alpha> = (grover_iteration m start_state)$$(x * 2,0) "
+  and "\<beta> = (grover_iteration m start_state)$$(i * 2,0) "
+  shows "(grover_iteration (Suc m) start_state)
+       = ((Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>
+                                             else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> )) \<Otimes> (H * |one\<rangle>))"
 proof (induction m)
   fix m::nat
-  assume IH: "(grover_iteration (Suc m) v)$$(i * 2,0) 
-            = 1/sqrt(2)*(((2^(n-1)-1)/2^(n-1))*((grover_iteration m v)$$(i * 2,0)) 
-            + (2^n-1)/(2^(n-1))*((grover_iteration m v)$$(i * 2,0))) "
-  then have "(grover_iteration (Suc (Suc m)) v)$$(i * 2,0) 
-           = ((D\<Otimes>Id 1) * q_oracle' * (grover_iteration (Suc m) v))$$(i * 2,0)" by auto
-  then have "((D\<Otimes>Id 1) * (q_oracle' * (grover_iteration (Suc m) v)))$$(i * 2,0)
-           = 0"
+  assume IH: "(grover_iteration (Suc m) start_state)
+       = ((Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>
+                                             else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> )) \<Otimes> (H * |one\<rangle>))"
+  then have "(grover_iteration (Suc (Suc m)) start_state) = ((D\<Otimes>Id 1) * q_oracle' * (grover_iteration (Suc m) start_state))"
+    by auto
+  then have "((D \<Otimes> Id 1) * q_oracle' * (grover_iteration (Suc m) start_state))
+           = ((D \<Otimes> Id 1) * q_oracle' * ((Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>
+                                             else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> )) \<Otimes> (H * |one\<rangle>)))" 
+    using IH by auto
+  then have " ((D \<Otimes> Id 1) * q_oracle' * ((Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>
+                                             else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> )) \<Otimes> (H * |one\<rangle>)))
+            = ((D \<Otimes> Id 1) * ((Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>
+                                             else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> )) \<Otimes> (H * |one\<rangle>)))" sorry
+  then have "((D \<Otimes> Id 1) * ((Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>
+                                             else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> )) \<Otimes> (H * |one\<rangle>)))
+            = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*(((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>) 
+                                                     + (2^n-1)/(2^(n-1))*(1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> )
+                                             else 1/2^(n-1)*-(((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>) 
+                                                     + (-1+2^(n-1))/2^(n-1)*(1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta>) ))
+                                            \<Otimes> (H * |one\<rangle>) " (*Control if this is correct then it should be easy to prove *)
+using app_diffusion_op_res sorry
 
 
 lemma (in grover)
