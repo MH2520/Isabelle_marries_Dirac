@@ -237,15 +237,12 @@ qed
 
 lemma (in grover) diffusion_Id_is_gate:
   shows "gate (n+1) (D \<Otimes> Id 1)"
-  using diffusion_is_gate id_is_gate tensor_gate by auto
-
-
-
+  using diffusion_is_gate id_is_gate tensor_gate by blast
 
 lemma (in grover) app_oracle:
   fixes \<alpha> \<beta>::real
   assumes "v = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))"
-  assumes "w = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -\<alpha> else \<beta>))"
+  and "w = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -\<alpha> else \<beta>))"
   shows "q_oracle * (v \<Otimes> (H * |one\<rangle>)) = (w \<Otimes> (H * |one\<rangle>))"
 proof-
   have "dim_row v = 2^n \<and> dim_col v = 1" using assms by auto
@@ -273,6 +270,11 @@ proof-
   ultimately show "q_oracle * (v \<Otimes> (H * |one\<rangle>)) = (w \<Otimes> (H * |one\<rangle>))" by blast
 qed
 
+lemma (in grover) app_oracle_res_is_state:
+  fixes \<alpha> \<beta>::real
+  assumes "state (n+1) ((Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))\<Otimes> (H * |one\<rangle>))" 
+    shows "state n (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -\<alpha> else \<beta>))"
+  sorry
 
 lemma (in grover) pow_2_n_half[simp]: (*Give better name*)
   shows "2^n-2^(n-1) = (2::real)^(n-1)" 
@@ -671,7 +673,7 @@ primrec (in grover) grover_iteration::"nat\<Rightarrow>complex Matrix.mat\<Right
 "grover_iteration 0 v = v"|
 "grover_iteration (Suc m) v = (D\<Otimes>Id 1) * (q_oracle * (grover_iteration m v))"
 
-lemma (in grover)
+lemma (in grover) is_state_grover_iteration:
   shows "state (n+1)(grover_iteration m start_state)"
 proof(induction m)
   show "state (n+1)(grover_iteration 0 start_state)" using \<psi>\<^sub>1_is_state dim by auto
@@ -680,11 +682,80 @@ next
   assume IH: "state (n+1)(grover_iteration m start_state)"
   moreover have "(grover_iteration (Suc m) start_state) = (D\<Otimes>Id 1) * (q_oracle * (grover_iteration m start_state))" 
     using grover_iteration.simps(2) by blast
-  moreover have "gate (n+1) (D\<Otimes>Id 1)" and "gate (n+1) q_oracle" sorry
+  moreover have "gate (n+1) (D\<Otimes>Id 1)" and "gate (n+1) q_oracle" 
+    using diffusion_Id_is_gate q_oracle_is_gate by auto
   ultimately show "state (n+1)(grover_iteration (Suc m) start_state)" 
     using gate_on_state_is_state by auto
 qed
 
+(*The proof does not work this way? *)
+lemma (in grover)
+  assumes "i\<le>2^n" and "i\<noteq>x"
+shows "(grover_iteration (Suc m) start_state)
+       = ((Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*((grover_iteration m start_state)$$(x * 2,0)) 
+                                                 + (2^n-1)/(2^(n-1))*((grover_iteration m start_state)$$(i * 2,0))
+                                              else 1/2^(n-1)*-((grover_iteration m start_state)$$(x * 2,0))
+                                                 + (-1+2^(n-1))/2^(n-1)*((grover_iteration m start_state)$$(i * 2,0))
+                               )) \<Otimes> (H * |one\<rangle>))" 
+  sorry
+
+
+
+(*proof (induction m)
+  fix m::nat  
+  assume IH: "(grover_iteration (Suc m) start_state)
+       = ((Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>
+                                             else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> )) \<Otimes> (H * |one\<rangle>))"
+  then have "(grover_iteration m start_state)$$(x * 2,0) = 1/sqrt(2)*((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>" sorry
+  then have "(grover_iteration m start_state)$$(i * 2,0) = 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta>" sorry
+
+  then have "(grover_iteration (Suc (Suc m)) start_state) 
+           = (D\<Otimes>Id 1) * (q_oracle * (grover_iteration (Suc m) start_state))"
+    by auto
+  then have "((D \<Otimes> Id 1) * q_oracle * (grover_iteration (Suc m) start_state))
+           = ((D \<Otimes> Id 1) * q_oracle * ((Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>
+                                             else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> )) \<Otimes> (H * |one\<rangle>)))" 
+    using IH by auto
+  then have " (q_oracle * ((Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-(1::real))/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>
+                                             else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> )) \<Otimes> (H * |one\<rangle>)))
+            = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -(((2^(n-1)-(1::real))/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>)
+                                             else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> )) \<Otimes> (H * |one\<rangle>)" 
+    using app_oracle by blast (*Problem with complex, change everything to complex above hard and causes problems at other points*)
+  have "state (n+1) (grover_iteration (Suc m) start_state)"
+    using is_state_grover_iteration[of "Suc m"] assms IH by auto
+  then have "state (n+1) ((Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>
+                                             else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> )) \<Otimes> (H * |one\<rangle>))"
+    using IH by auto
+  then have "state n (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -(((2^(n-1)-(1::real))/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>)
+                                             else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> ))" 
+    using app_oracle_res_is_state[of "((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>" "1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta>"] 
+    by auto
+  then have "(D \<Otimes> Id 1) * ((Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -(((2^(n-1)-(1::real))/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>)
+                                             else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> )) \<Otimes> (H * |one\<rangle>))
+            = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*(((2^(n-1)-(1::real))/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>) 
+                                                     + (2^n-1)/(2^(n-1))*(1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta>)
+                                             else 1/2^(n-1)*-(((2^(n-1)-(1::real))/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>) 
+                                                     + (-1+2^(n-1))/2^(n-1)*(1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta>) ))
+             \<Otimes> (H * |one\<rangle>)"
+    using app_diffusion_op_res by auto
+  then have "((2^(n-1)-1)/2^(n-1))*(((2^(n-1)-(1::real))/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>)                    
+            =((2^(n-1)-1)/2^(n-1))*((2^(n-1)-(1::real))/2^(n-1))*\<alpha> + ((2^(n-1)-1)/2^(n-1))* (2^n-1)/(2^(n-1))*\<beta>"
+    sorry
+  then have "... = ((2^(n-1)-1)/2^(n-1))\<^sup>2*\<alpha> + (2^(n-1)-1)* (2^n-1)/(2^(n-1))\<^sup>2*\<beta>"
+    sorry
+  have "(2^n-1)/(2^(n-1))*(1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta>) = 
+        (2^n-1)/(2^(n-1))*1/2^(n-1)*-\<alpha> + (2^n-1)/(2^(n-1))*(-1+2^(n-1))/2^(n-1)*\<beta>" sorry
+  have "(2^n-1)/2^(n-1)*1/2^(n-1)*-\<alpha> + (2^n-1)/2^(n-1)*(-1+2^(n-1))/2^(n-1)*\<beta>
+       =1/(2^(n-1))*-\<alpha> + (2^n-1)*(-1+2^(n-1))/(2^(n-1))\<^sup>2*\<beta>" sorry
+  have "1/(2^(n-1))*-\<alpha> + ((2^(n-1)-1)/2^(n-1))\<^sup>2*\<alpha>
+       =(-1/(2^(n-1)) + ((2^(n-1)-1)/2^(n-1))\<^sup>2)*\<alpha>" sorry
+  have "(-1/(2^(n-1)) + ((2^(n-1)-1)/2^(n-1))\<^sup>2)*\<alpha>
+       = (-(2^(n-1)+(2^(n-1)-1)\<^sup>2) /(2^(n-1))\<^sup>2)*\<alpha>" sorry
+  have "((2^(n-1)-1)\<^sup>2 - 2^(n-1)) /((2^(n-1))\<^sup>2)*\<alpha>
+       =((2^(n-1))\<^sup>2-2 *2^(n-1) + 1 - 2^(n-1))/((2^(n-1))\<^sup>2)*\<alpha>" sorry
+  have "((2^(n-1))\<^sup>2-2 *2^(n-1) + 1 - 2^(n-1))/((2^(n-1))\<^sup>2)*\<alpha>
+       =99 " sorry
+*)
 
 lemma (in grover)
   assumes "i\<le>2^n" and "i\<noteq>x"
@@ -693,40 +764,29 @@ lemma (in grover)
   shows "(grover_iteration (Suc m) start_state)
        = ((Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>
                                              else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> )) \<Otimes> (H * |one\<rangle>))"
-proof (induction m)
-  fix m::nat
-  assume IH: "(grover_iteration (Suc m) start_state)
-       = ((Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>
-                                             else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> )) \<Otimes> (H * |one\<rangle>))"
-  then have "(grover_iteration (Suc (Suc m)) start_state) = ((D\<Otimes>Id 1) * q_oracle' * (grover_iteration (Suc m) start_state))"
-    by auto
-  then have "((D \<Otimes> Id 1) * q_oracle' * (grover_iteration (Suc m) start_state))
-           = ((D \<Otimes> Id 1) * q_oracle' * ((Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>
-                                             else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> )) \<Otimes> (H * |one\<rangle>)))" 
-    using IH by auto
-  then have " ((D \<Otimes> Id 1) * q_oracle' * ((Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>
-                                             else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> )) \<Otimes> (H * |one\<rangle>)))
-            = ((D \<Otimes> Id 1) * ((Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>
-                                             else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> )) \<Otimes> (H * |one\<rangle>)))" sorry
-  then have "((D \<Otimes> Id 1) * ((Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>
-                                             else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> )) \<Otimes> (H * |one\<rangle>)))
-            = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*(((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>) 
-                                                     + (2^n-1)/(2^(n-1))*(1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta> )
-                                             else 1/2^(n-1)*-(((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>) 
-                                                     + (-1+2^(n-1))/2^(n-1)*(1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta>) ))
-                                            \<Otimes> (H * |one\<rangle>) " (*Control if this is correct then it should be easy to prove *)
-using app_diffusion_op_res sorry
+  sorry
+
+definition(in grover) probx_it::"nat \<Rightarrow> complex Matrix.mat \<Rightarrow> real" where
+"probx_it m v = (cmod ((grover_iteration (Suc m) start_state)$$(2*x,0)))\<^sup>2 + (cmod ((grover_iteration (Suc m) start_state)$$(2*x+1,0)))\<^sup>2"
+
+lemma (in grover)
+  shows "probx_it (Suc m) v \<ge> probx_it m v + 1/(sqrt(2)^n)" 
+proof-
+  have "probx_it (Suc m) v = (cmod ((grover_iteration (Suc m) start_state)$$(2*x,0)))\<^sup>2 + (cmod ((grover_iteration (Suc m) start_state)$$(2*x+1,0)))\<^sup>2"
+    sorry
+  have "(cmod ((grover_iteration (Suc m) start_state)$$(2*x,0)))\<^sup>2 = 
+(cmod  ((2^(n-1)-1)/2^(n-1))*((grover_iteration m start_state)$$(x * 2,0)) 
+                                                 + (2^n-1)/(2^(n-1))*((grover_iteration m start_state)$$(i * 2,0)))\<^sup>2"
+    sorry
+qed
 
 
 lemma (in grover)
-  assumes "state (n+1) v" and "i\<le>2^n" 
-  shows " ((grover_iteration m v)$$(i * 2,0)) \<ge> 0" 
-proof (induction m)
-  fix m::nat
-  assume IH: "(grover_iteration m v)$$(x * 2,0) \<ge> 0" 
-  then have "grover_iteration (Suc m) v = D * q_oracle' * (grover_iteration m v)" by simp
-  then have "grover_iteration (Suc m) v 
-qed
+  shows "probx_it (Suc m) v \<le> probx_it m v + 2/(sqrt(2)^n)" sorry
+
+lemma (in grover)
+  shows "probx_it iterations v \<ge> 2/3" sorry
+
 
 
 
