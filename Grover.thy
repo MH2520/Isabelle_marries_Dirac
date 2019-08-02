@@ -6,7 +6,7 @@ Authors:
 
 theory Grover
 imports                           
-  (*MoreTensor*)
+  More_Tensor
   Binary_Nat
   Deutsch_Jozsa (*Just for now so that I don't have to copy everything*)
 begin
@@ -24,14 +24,13 @@ lemma ket_one_is_state:
 
 locale grover =
   fixes f:: "nat \<Rightarrow> nat" and n::nat and x:: "nat" (*Would it be better to do it with *? *)
-  fixes q_oracle :: "complex Matrix.mat \<Rightarrow> complex Matrix.mat"
-  fixes q_oracle' :: "complex Matrix.mat"
+  fixes q_oracle :: "complex Matrix.mat"
   assumes fun_dom: "f \<in> ({(i::nat). i < 2^n} \<rightarrow>\<^sub>E {0,1})"
   assumes dim: "n\<ge>1"
   assumes searched_dom: "x \<in> {(i::nat). i < 2^n}"
   assumes searched: "\<forall>i < 2^n. f(i) = 1 \<longleftrightarrow> i=x" 
   assumes q_oracle_app: "\<forall>(A::complex Matrix.mat). dim_row A = 2^n \<and> dim_col A = 1 \<longrightarrow>   
-                            q_oracle (A \<Otimes> (H * |one\<rangle>))
+                            q_oracle * (A \<Otimes> (H * |one\<rangle>))
                          = (Matrix.mat (2^n) 1 (\<lambda>(i,j). (-1)^f(i) * (A$$(i,j))))  \<Otimes> (H * |one\<rangle>)"
 
 context grover
@@ -71,21 +70,186 @@ lemma search_function_one [simp]:
   using fun_dom searched f_values assms
   by blast
 
+lemma q_oracle_is_gate:
+  shows "gate (n+1) q_oracle" (*I should be able to show this otw assume it*)
+  sorry 
+
 end (*context grover*)
 
+lemma sum_without_x:
+  fixes n i::nat
+      and a::real
+  assumes "i<n" and "n\<ge>1"
+  shows "(\<Sum> k \<in> ({0 ..< n}-{i}). a) = (n-(1::real))*a "  using assms by auto
+
+lemma sum_without_x_and_i: (*Put together with last lemma?*) 
+  fixes n i x::nat
+      and a ::real
+  assumes "i<n" and "x<n" and "n\<ge>2" and "i\<noteq>x"
+  shows "(\<Sum> k \<in> ({0 ..< n}-{i,x}). a) = (n-(2::real))*a" using assms by auto
+
+(*Do I need to show that this is 2 |psi><psi|-I? If so how? Show that they give same result on arbitrary vector?*)
 definition(in grover) diffusion_operator::"complex Matrix.mat" where
 "diffusion_operator = Matrix.mat (2^n) (2^n) (\<lambda>(i,j). if i=j then ((1-2^(n-1))/2^(n-1)) else 1/(2^(n-1)))"
 
 notation(in grover) diffusion_operator ("D")
 
+lemma (in grover) diffusion_operator_values_hidden:
+  assumes "i<2^n \<and> j<2^n" 
+  shows "(k::nat) \<in> ({0..<2^n}-{i,j}) \<longrightarrow> D$$(i,k) = 1/(2^(n-1)) \<and> D$$(k,j) = 1/(2^(n-1))"
+  by (simp add: assms diffusion_operator_def)
+    
+
+ 
+lemma (in grover) transpose_of_diffusion:
+  shows "(D)\<^sup>t = D"
+proof
+  fix i j::nat
+  assume "i < dim_row D" and "j < dim_col D"
+  thus "D\<^sup>t $$ (i, j) = D $$ (i, j)" using diffusion_operator_def
+    by (auto simp add: transpose_mat_def)
+next
+  show "dim_row D\<^sup>t = dim_row D"
+    by (simp add: diffusion_operator_def)
+next  
+  show "dim_col D\<^sup>t = dim_col D"
+    by (simp add: diffusion_operator_def)
+qed
+
+lemma (in grover) adjoint_of_diffusion: 
+  shows "(D)\<^sup>\<dagger> = D"
+proof
+  show "dim_row (D\<^sup>\<dagger>) = dim_row D" by (simp add: diffusion_operator_def)
+next
+  show "dim_col (D\<^sup>\<dagger>) = dim_col D" by (simp add: diffusion_operator_def)
+next
+  fix i j:: nat
+  assume a0: "i < dim_row D" and a1: "j < dim_col D"
+  then have f0: "D\<^sup>\<dagger> $$ (i, j) = cnj(D $$ (j,i))" 
+    using hermite_cnj_def by (metis case_prod_conv index_mat(1) index_transpose_mat(3) transpose_of_diffusion)
+  show "D\<^sup>\<dagger> $$ (i, j) = D $$ (i, j)"
+  proof(rule disjE)
+    show "i=j \<or> i\<noteq>j" by auto
+  next
+    assume a2: "i=j"
+    moreover have "D $$ (i, j) = (1 - 2 ^ (n - 1)) / 2 ^ (n - 1)"
+        using a0 a2 diffusion_operator_def complex_cnj_cancel_iff by auto
+    ultimately show "D\<^sup>\<dagger> $$ (i, j) = D $$ (i, j)" using f0 cnj_def by auto
+  next
+    assume a2: "i\<noteq>j"
+    moreover have  "D $$ (i, j) = 1/(2^(n-1))"
+      using a0 a1 a2 diffusion_operator_def complex_cnj_cancel_iff dim_col_mat(1) index_mat(1) index_transpose_mat(3) 
+            old.prod.case transpose_of_diffusion by auto
+    moreover have  "D $$ (j, i) = 1/(2^(n-1))"
+      using a0 a1 a2 diffusion_operator_def complex_cnj_cancel_iff dim_col_mat(1) index_mat(1) index_transpose_mat(3) 
+            old.prod.case transpose_of_diffusion by auto
+    ultimately show "D\<^sup>\<dagger> $$ (i, j) = D $$ (i, j)" using f0 cnj_def by auto
+  qed
+qed
+    
+lemma (in grover) diffusion_is_gate:
+  shows "gate n D"
+proof
+  show "dim_row D = 2^n" using diffusion_operator_def by auto
+next
+  show "square_mat D" using diffusion_operator_def by auto
+next
+  show "unitary D" 
+  proof-
+    have "D * D = 1\<^sub>m (dim_col D)"
+    proof
+      show "dim_row (D * D) = dim_row (1\<^sub>m (dim_col D))" by (simp add: diffusion_operator_def)
+    next
+      show "dim_col (D * D) = dim_col (1\<^sub>m (dim_col D))" by (simp add: diffusion_operator_def)
+    next
+      fix i j:: nat
+      assume a0: "i < dim_row (1\<^sub>m (dim_col D))" and a1: "j < dim_col (1\<^sub>m (dim_col D))"
+      then have f0: "i < 2^n \<and> j < 2^n" by (simp add: diffusion_operator_def)
+      show "(D * D) $$ (i,j) = 1\<^sub>m (dim_col D) $$ (i, j)"
+      proof(rule disjE)
+        show "i=j \<or> i\<noteq>j" by auto
+      next
+        assume a2: "i=j"
+        then have "(D * D) $$ (i,j) = (\<Sum>k<dim_row D. (D $$ (i,k)) * (D $$ (k,j)))"       
+          using a0 a1 
+          by (metis (no_types, lifting) index_matrix_prod index_one_mat(2) index_transpose_mat(3) sum.cong transpose_of_diffusion)
+        also have "... = (\<Sum>k \<in> ({0..<2^n}). (D $$ (i,k)) * (D $$ (k,j)))"  
+          by (simp add: atLeast0LessThan diffusion_operator_def)
+        also have "... = (\<Sum>k \<in> ({0..<2^n}-{i}). (D $$ (i,k)) * (D $$ (k,j))) + (D $$ (i,i)) * (D $$ (i,j))" 
+          using a1 a2
+          by (metis (no_types, lifting) add.commute atLeast0LessThan diffusion_operator_def dim_col_mat(1) finite_atLeastLessThan index_one_mat(3) insert_Diff insert_Diff_single lessThan_iff sum.insert_remove)
+        also have "... = (\<Sum>k \<in> ({0..<2^n}-{i}).(1::real)/(2^(n-1)) * 1/(2^(n-1))) + ((1-2^(n-1))/2^(n-1)) * ((1-2^(n-1))/2^(n-1)) "
+          using diffusion_operator_def a1 a2 by auto
+        also have "... = (2^n - (1::real)) * (1 / 2^(n-1) * 1 / 2^(n-1)) + ((1-2^(n-1))/2^(n-1)) * ((1-2^(n-1))/2^(n-1))"
+          using sum_without_x[of "i" "2^n" "1/(2^(n-1)) * 1/(2^(n-1))"] a0 a1 dim diffusion_operator_def by simp
+        also have "... = (2^n - (1::real))/ (2^(n-1))\<^sup>2 + (1-2^(n-1))\<^sup>2/(2^(n-1))\<^sup>2" 
+          by (simp add: power2_eq_square)
+        also have "... = ((2^n - (1::real)) + (1-2^(n-1))\<^sup>2)/(2^(n-1))\<^sup>2" 
+          by (simp add: add_divide_distrib)
+        also have "... = ((2^n - (1::real)) + (1\<^sup>2+(2^(n-1))\<^sup>2-2*2^(n-1)))/(2^(n-1))\<^sup>2"
+          using power2_diff[of 1 "2^(n-1)"]  mult.right_neutral by metis
+        also have "... = (2^n +(2^(n-1))\<^sup>2-2*2^(n-1))/(2^(n-1))\<^sup>2" by simp
+        also have "... = (2^n +(2^(n-1))\<^sup>2-2^n)/(2^(n-1))\<^sup>2" by (metis dim le_numeral_extra(2) power_eq_if)
+        also have "... = 1" by simp
+        finally have "(D * D) $$ (i,j) = 1" by auto
+        then show "(D * D) $$ (i,j) = 1\<^sub>m (dim_col D) $$ (i, j)" 
+          using a1 a2 by auto
+      next
+        assume a2: "i\<noteq>j"
+        then have "(D * D) $$ (i,j) = (\<Sum>k<dim_row D. (D $$ (i,k)) * (D $$ (k,j)))"       
+          using a0 a1 
+          by (metis (no_types, lifting) index_matrix_prod index_one_mat(2) index_one_mat(3) index_transpose_mat(3) sum.cong 
+              transpose_of_diffusion)
+        also have "... = (\<Sum>k \<in> ({0..<2^n}). (D $$ (i,k)) * (D $$ (k,j)))"  
+          by (simp add: atLeast0LessThan diffusion_operator_def)
+        also have "... = (\<Sum>k \<in> ({0..<2^n}-{i,j}). (D $$ (i,k)) * (D $$ (k,j))) 
+                       + (D $$ (i,i)) * (D $$ (i,j)) + (D $$ (i,j)) * (D $$ (j,j))"  
+          using a0 a1 a2 (*Replace this*)
+          by (smt Diff_insert add.commute atLeast0LessThan diffusion_operator_def dim_col_mat(1) 
+              finite_Diff finite_atLeastLessThan index_one_mat(2) index_one_mat(3) insert_Diff insert_Diff_single 
+              insert_iff lessThan_iff sum.insert_remove)
+        also have "... = (\<Sum>k \<in> ({0..<2^n}-{i,j}).  (1::real)/(2^(n-1)) * 1/(2^(n-1))) 
+                        + ((1-2^(n-1))/2^(n-1)) * 1/(2^(n-1)) + 1/(2^(n-1)) * ((1-2^(n-1))/2^(n-1))" 
+          using diffusion_operator_values_hidden f0 sum.cong a2 diffusion_operator_def by auto
+        also have "... = (2^n-(2::real))* 1/2^(n-1) * 1/2^(n-1)
+                       + (1-2^(n-1))/2^(n-1) * 1/2^(n-1) + 1/2^(n-1) * (1-2^(n-1))/2^(n-1)" 
+          using sum_without_x_and_i[of "i" "2^n" "j" "(1/(2^(n-1)) * 1/(2^(n-1)))"] a0 a1 a2 diffusion_operator_def 
+          by auto
+        also have "... = (2^n-(2::real)) * (1/2^(n-1))\<^sup>2 + (1-2^(n-1)) * (1/2^(n-1))\<^sup>2 + (1-2^(n-1)) * (1/2^(n-1))\<^sup>2" 
+          by (simp add: power2_eq_square)
+        also have "... = ((2^n-(2::real)) + (1-2^(n-1)) + (1-2^(n-1))) * (1/2^(n-1))\<^sup>2" 
+          by (metis comm_semiring_class.distrib)
+        also have "... = (2^n-2*2^(n-1)) * (1/2^(n-1))\<^sup>2" by auto
+        also have "... = (2^n-2^n) * (1/2^(n-1))\<^sup>2" 
+          by (metis dim le_add_diff_inverse plus_1_eq_Suc power.simps(2))
+        also have "... = 0" by auto
+        finally have "(D * D) $$ (i,j) = 0" by auto
+        then show "(D * D) $$ (i,j) = 1\<^sub>m (dim_col D) $$ (i, j)" 
+          using a0 a1 a2 by auto
+      qed
+    qed
+    then show "unitary D" 
+      by (metis adjoint_of_diffusion index_transpose_mat(3) transpose_of_diffusion unitary_def)
+  qed
+qed
+         
+  
+
+lemma (in grover) diffusion_Id_is_gate:
+  shows "gate (n+1) (D \<Otimes> Id 1)"
+  using diffusion_is_gate id_is_gate tensor_gate by auto
+
+
+
+
 lemma (in grover) app_oracle:
   fixes \<alpha> \<beta>::real
   assumes "v = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))"
   assumes "w = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -\<alpha> else \<beta>))"
-  shows "q_oracle (v \<Otimes> (H * |one\<rangle>)) = (w \<Otimes> (H * |one\<rangle>))"
+  shows "q_oracle * (v \<Otimes> (H * |one\<rangle>)) = (w \<Otimes> (H * |one\<rangle>))"
 proof-
   have "dim_row v = 2^n \<and> dim_col v = 1" using assms by auto
-  then have "q_oracle (v \<Otimes> (H * |one\<rangle>)) = (Matrix.mat (2^n) 1 (\<lambda>(i,j). (-1)^f(i) * (v$$(i,j)))) \<Otimes> (H * |one\<rangle>)"
+  then have "q_oracle * (v \<Otimes> (H * |one\<rangle>)) = (Matrix.mat (2^n) 1 (\<lambda>(i,j). (-1)^f(i) * (v$$(i,j)))) \<Otimes> (H * |one\<rangle>)"
     using q_oracle_app assms by blast
   moreover have "(Matrix.mat (2^n) 1 (\<lambda>(i,j). (-1)^f(i) * (v$$(i,j)))) = w" 
   proof{
@@ -106,20 +270,9 @@ proof-
     show "dim_col (Matrix.mat (2^n) 1 (\<lambda>(i,j). (-1)^f(i) * (v$$(i,j)))) = dim_col w" 
       by (simp add: assms(2))
   }qed
-  ultimately show "q_oracle (v \<Otimes> (H * |one\<rangle>)) = (w \<Otimes> (H * |one\<rangle>))" by blast
+  ultimately show "q_oracle * (v \<Otimes> (H * |one\<rangle>)) = (w \<Otimes> (H * |one\<rangle>))" by blast
 qed
 
-lemma sum_without_x:
-  fixes n i::nat
-      and a::real
-  assumes "i<n" and "n\<ge>1"
-  shows "(\<Sum> k \<in> ({0 ..< n}-{i}). a) = (n-1)*a "  using assms by auto
-
-lemma sum_without_x_and_i: (*Put together with last lemma?*) 
-  fixes n i x::nat
-      and a ::real
-  assumes "i<n" and "x<n" and "n\<ge>2" and "i\<noteq>x"
-  shows "(\<Sum> k \<in> ({0 ..< n}-{i,x}). a) = (n-(2::real))*a" using assms by auto
 
 lemma (in grover) pow_2_n_half[simp]: (*Give better name*)
   shows "2^n-2^(n-1) = (2::real)^(n-1)" 
@@ -512,11 +665,25 @@ lemma  (in grover) upper_bound_increase_amp_x:
 
 
 abbreviation(in grover) start_state:: "complex Matrix.mat" where
-"start_state \<equiv> (\<psi>\<^sub>1\<^sub>0 n)\<Otimes>(H * |one\<rangle>)"
+"start_state \<equiv> (\<psi>\<^sub>1 n)" (*(\<psi>\<^sub>1\<^sub>0 n)\<Otimes>(H * |one\<rangle>)"*)
 
 primrec (in grover) grover_iteration::"nat\<Rightarrow>complex Matrix.mat\<Rightarrow>complex Matrix.mat" where
 "grover_iteration 0 v = v"|
-"grover_iteration (Suc m) v = (D\<Otimes>Id 1) * q_oracle' * (grover_iteration m v)"
+"grover_iteration (Suc m) v = (D\<Otimes>Id 1) * (q_oracle * (grover_iteration m v))"
+
+lemma (in grover)
+  shows "state (n+1)(grover_iteration m start_state)"
+proof(induction m)
+  show "state (n+1)(grover_iteration 0 start_state)" using \<psi>\<^sub>1_is_state dim by auto
+next
+  fix m
+  assume IH: "state (n+1)(grover_iteration m start_state)"
+  moreover have "(grover_iteration (Suc m) start_state) = (D\<Otimes>Id 1) * (q_oracle * (grover_iteration m start_state))" 
+    using grover_iteration.simps(2) by blast
+  moreover have "gate (n+1) (D\<Otimes>Id 1)" and "gate (n+1) q_oracle" sorry
+  ultimately show "state (n+1)(grover_iteration (Suc m) start_state)" 
+    using gate_on_state_is_state by auto
+qed
 
 
 lemma (in grover)
