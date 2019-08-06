@@ -4,6 +4,10 @@ Authors:
   Anthony Bordg, University of Cambridge, apdb3@cam.ac.uk
 *)
 
+
+
+(*TODO: delete all \<alpha>, \<beta> from lemma names*)
+
 theory Grover
 imports                           
   More_Tensor
@@ -30,8 +34,7 @@ locale grover =
   assumes searched_dom: "x \<in> {(i::nat). i < 2^n}"
   assumes searched: "\<forall>i < 2^n. f(i) = 1 \<longleftrightarrow> i=x" 
   assumes q_oracle_app: "\<forall>(A::complex Matrix.mat). dim_row A = 2^n \<and> dim_col A = 1 \<longrightarrow>   
-                            O * (A \<Otimes> (H * |one\<rangle>))
-                         = (Matrix.mat (2^n) 1 (\<lambda>(i,j). (-1)^f(i) * (A$$(i,j))))  \<Otimes> (H * |one\<rangle>)"
+                         O * (A \<Otimes> (H * |one\<rangle>)) = (Matrix.mat (2^n) 1 (\<lambda>(i,j). (-1)^f(i) * (A$$(i,j))))  \<Otimes> (H * |one\<rangle>)"
   assumes q_oracle_gate: "gate (n+1) O"
 
 context grover
@@ -148,12 +151,10 @@ next
     ultimately show "D\<^sup>\<dagger> $$ (i, j) = D $$ (i, j)" using f0 cnj_def by auto
   next
     assume a2: "i\<noteq>j"
-    moreover have  "D $$ (i, j) = 1/(2^(n-1))"
-      using a0 a1 a2 diffusion_operator_def complex_cnj_cancel_iff dim_col_mat(1) index_mat(1) index_transpose_mat(3) 
-            old.prod.case transpose_of_diffusion by auto
-    moreover have  "D $$ (j, i) = 1/(2^(n-1))"
-      using a0 a1 a2 diffusion_operator_def complex_cnj_cancel_iff dim_col_mat(1) index_mat(1) index_transpose_mat(3) 
-            old.prod.case transpose_of_diffusion by auto
+    moreover have "D $$ (i, j) = 1/(2^(n-1))"
+      using a0 a1 a2 diffusion_operator_def by auto
+    moreover have "D $$ (j, i) = 1/(2^(n-1))"
+      using a0 a1 a2 diffusion_operator_def by auto
     ultimately show "D\<^sup>\<dagger> $$ (i, j) = D $$ (i, j)" using f0 cnj_def by auto
   qed
 qed
@@ -189,15 +190,13 @@ next
         also have "... = (\<Sum>k \<in> ({0..<2^n}-{i}). (D $$ (i,k)) * (D $$ (k,j))) + (D $$ (i,i)) * (D $$ (i,j))" 
           using a1 a2
           by (metis (no_types, lifting) add.commute atLeast0LessThan diffusion_operator_def dim_col_mat(1) finite_atLeastLessThan index_one_mat(3) insert_Diff insert_Diff_single lessThan_iff sum.insert_remove)
-        also have "... = (\<Sum>k \<in> ({0..<2^n}-{i}).(1::real)/(2^(n-1)) * 1/(2^(n-1))) + ((1-2^(n-1))/2^(n-1)) * ((1-2^(n-1))/2^(n-1)) "
+        also have "... = (\<Sum>k \<in> ({0..<2^n}-{i}).1/(2^(n-1)) * 1/(2^(n-1))) + ((1-2^(n-1))/2^(n-1)) * ((1-2^(n-1))/2^(n-1)) "
           using diffusion_operator_def a1 a2 by auto
-        also have "... = (2^n - (1::real)) * (1 / 2^(n-1) * 1 / 2^(n-1)) + ((1-2^(n-1))/2^(n-1)) * ((1-2^(n-1))/2^(n-1))"
+        also have "... = (2^n - 1) * (1 / 2^(n-1) * 1 / 2^(n-1)) + ((1-2^(n-1))/2^(n-1)) * ((1-2^(n-1))/2^(n-1))"
           using sum_without_x[of "i" "2^n" "1/(2^(n-1)) * 1/(2^(n-1))"] a0 a1 dim diffusion_operator_def by simp
-        also have "... = (2^n - (1::real))/ (2^(n-1))\<^sup>2 + (1-2^(n-1))\<^sup>2/(2^(n-1))\<^sup>2" 
-          by (simp add: power2_eq_square)
-        also have "... = ((2^n - (1::real)) + (1-2^(n-1))\<^sup>2)/(2^(n-1))\<^sup>2" 
-          by (simp add: add_divide_distrib)
-        also have "... = ((2^n - (1::real)) + (1\<^sup>2+(2^(n-1))\<^sup>2-2*2^(n-1)))/(2^(n-1))\<^sup>2"
+        also have "... = ((2^n - 1) + (1-2^(n-1))\<^sup>2)/(2^(n-1))\<^sup>2" 
+          by (simp add: power2_eq_square add_divide_distrib)
+        also have "... = ((2^n - 1) + (1\<^sup>2+(2^(n-1))\<^sup>2-2*2^(n-1)))/(2^(n-1))\<^sup>2"
           using power2_diff[of 1 "2^(n-1)"]  mult.right_neutral by metis
         also have "... = (2^n +(2^(n-1))\<^sup>2-2*2^(n-1))/(2^(n-1))\<^sup>2" by simp
         also have "... = (2^n +(2^(n-1))\<^sup>2-2^n)/(2^(n-1))\<^sup>2" by (metis dim le_numeral_extra(2) power_eq_if)
@@ -215,20 +214,20 @@ next
           by (simp add: atLeast0LessThan diffusion_operator_def)
         also have "... = (\<Sum>k \<in> ({0..<2^n}-{i,j}). (D $$ (i,k)) * (D $$ (k,j))) 
                        + (D $$ (i,i)) * (D $$ (i,j)) + (D $$ (i,j)) * (D $$ (j,j))"  
-          using a0 a1 a2 (*Replace this*)
-          by (smt Diff_insert add.commute atLeast0LessThan diffusion_operator_def dim_col_mat(1) 
+          using a0 a1 a2 diffusion_operator_def (*This might be replaceable*)
+          by (smt Diff_insert add.commute atLeast0LessThan  dim_col_mat(1) 
               finite_Diff finite_atLeastLessThan index_one_mat(2) index_one_mat(3) insert_Diff insert_Diff_single 
               insert_iff lessThan_iff sum.insert_remove)
-        also have "... = (\<Sum>k \<in> ({0..<2^n}-{i,j}).  (1::real)/(2^(n-1)) * 1/(2^(n-1))) 
+        also have "... = (\<Sum>k \<in> ({0..<2^n}-{i,j}). 1/(2^(n-1)) * 1/(2^(n-1))) 
                         + ((1-2^(n-1))/2^(n-1)) * 1/(2^(n-1)) + 1/(2^(n-1)) * ((1-2^(n-1))/2^(n-1))" 
           using diffusion_operator_values_hidden f0 sum.cong a2 diffusion_operator_def by auto
-        also have "... = (2^n-(2::real))* 1/2^(n-1) * 1/2^(n-1)
+        also have "... = (2^n-2)* 1/2^(n-1) * 1/2^(n-1)
                        + (1-2^(n-1))/2^(n-1) * 1/2^(n-1) + 1/2^(n-1) * (1-2^(n-1))/2^(n-1)" 
           using sum_without_x_and_i[of "i" "2^n" "j" "(1/(2^(n-1)) * 1/(2^(n-1)))"] a0 a1 a2 diffusion_operator_def 
           by auto
-        also have "... = (2^n-(2::real)) * (1/2^(n-1))\<^sup>2 + (1-2^(n-1)) * (1/2^(n-1))\<^sup>2 + (1-2^(n-1)) * (1/2^(n-1))\<^sup>2" 
+        also have "... = (2^n-2) * (1/2^(n-1))\<^sup>2 + (1-2^(n-1)) * (1/2^(n-1))\<^sup>2 + (1-2^(n-1)) * (1/2^(n-1))\<^sup>2" 
           by (simp add: power2_eq_square)
-        also have "... = ((2^n-(2::real)) + (1-2^(n-1)) + (1-2^(n-1))) * (1/2^(n-1))\<^sup>2" 
+        also have "... = ((2^n-2) + (1-2^(n-1)) + (1-2^(n-1))) * (1/2^(n-1))\<^sup>2" 
           by (metis comm_semiring_class.distrib)
         also have "... = (2^n-2*2^(n-1)) * (1/2^(n-1))\<^sup>2" by auto
         also have "... = (2^n-2^n) * (1/2^(n-1))\<^sup>2" 
@@ -392,8 +391,7 @@ qed
 
 lemma (in grover) app_diffusion_op_index_x_recurence:
   fixes \<alpha> \<beta>::complex
-  shows "((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta> 
-       = ((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) + \<alpha>" 
+  shows "((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta> = ((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) + \<alpha>" 
 proof-
   have "((2^(n-1)-1)/2^(n-1))*\<alpha> = ((2^(n-1)-1)*\<alpha>)/2^(n-1)" by simp
   moreover have "(2^(n-1)-1)*\<alpha> = (2^(n-1)*\<alpha>) + (-1*\<alpha>)" 
@@ -443,6 +441,8 @@ next
   qed*)
 
 
+(*----------------------------------------------------------------------------------*)
+(*Maybe all the following lemmas could work with reals and I just make a conversion at the beginning*)
 
 
 (*Split up in two defs amplitude does not involve squaring*)
@@ -466,12 +466,29 @@ proof-
     by (simp add: assms(3))
 qed
 
-lemma t8:
+lemma ge_cpx_div_real:
   fixes a::complex and c b::real
   assumes "a \<ge> b" and "c\<ge>0" and "Im \<alpha> = 0"
   shows "a/c \<ge> b/c" using assms divide_right_mono by auto
 
-lemma t4: (*Shorten and give name, integrate proof of other lemma*)
+lemma le_cpx_mult_left: 
+  fixes a b c::complex
+  assumes "a\<le>b" and "c\<ge>0"
+  shows "c*a \<le> c*b"
+  using assms mult_le_cancel_left by fastforce
+
+lemma le_cpx_mult_right: 
+  fixes a b c::complex
+  assumes "a\<le>b" and "c\<ge>0"
+  shows "a*c \<le> b*c" 
+proof-
+  have "c*a \<le> c*b" using assms le_cpx_mult_left by auto
+  then show "a*c \<le> b*c" 
+    by (simp add: semiring_normalization_rules(7))
+qed
+
+
+lemma cmod_cpx_is_real: 
   fixes \<beta>::complex
   assumes "Im(\<beta>) = 0"
   shows "(cmod \<beta>)\<^sup>2 = \<beta>\<^sup>2"
@@ -484,14 +501,10 @@ proof-
   ultimately show "(cmod \<beta>)\<^sup>2 = \<beta>\<^sup>2" by auto
 qed
 
-
-
 lemma (in grover) lower_bound_on_\<beta>:
   fixes \<alpha> \<beta>::complex 
-  assumes "v = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))"
-      and "state n v" 
-      and "amp v \<le> 1/4" and "n\<ge>2" and "\<beta>\<ge>0"
-      and "Im(\<beta>) = 0"
+  assumes "v = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))" and "state n v" 
+      and "\<alpha> \<le> 1/2" and "\<alpha>\<ge>0" and "\<beta>\<ge>0" and "Im(\<beta>) = 0"
     shows "\<beta> \<ge> sqrt(3/(4*(2^n-1)))"
 proof-
   have "1 = (\<Sum>i<2^n. (cmod (v $$ (i,0)))\<^sup>2)" 
@@ -500,9 +513,18 @@ proof-
     by (smt atLeast0LessThan finite_atLeastLessThan insert_Diff insert_Diff_single lessThan_iff mem_Collect_eq 
         searched_dom sum.insert_remove)
   also have "... = (of_nat 2^n - 1)* \<beta>\<^sup>2 + (cmod (v $$ (x,0)))\<^sup>2" 
-    using assms sum_without_x[of x "2^n" "\<beta>\<^sup>2"] searched_dom t4[of \<beta>] by auto
-  also have "... = (2^n - 1) * \<beta>\<^sup>2 + (cmod (v $$ (x,0)))\<^sup>2"  by (simp add: of_nat_diff)
-  also have "... \<le> (2^n - 1) * \<beta>\<^sup>2 + 1/4" using assms amplitude_x_def by auto
+    using assms sum_without_x[of x "2^n" "\<beta>\<^sup>2"] searched_dom cmod_cpx_is_real[of \<beta>] by auto
+  also have f0: "... = (2^n - 1) * \<beta>\<^sup>2 + (cmod (v $$ (x,0)))\<^sup>2"  by (simp add: of_nat_diff)
+  also have "... = (2^n - 1) * \<beta>\<^sup>2 + \<alpha>\<^sup>2" 
+    using cmod_cpx_is_real[of \<alpha>] searched_dom assms by auto
+  also have "... \<le> (2^n - 1) * \<beta>\<^sup>2 + 1/4"
+  proof-
+    have "(Re \<alpha>)\<^sup>2 * 4 \<le> 1" using assms 
+      by (metis Re_divide_numeral div_0 divide_le_eq_numeral1(1) four_x_squared le_divide_eq_numeral1(1) 
+          less_eq_complex_def mult.commute one_complex.simps(1) power_mono power_one zero_complex.simps(1))
+    then have "\<alpha>\<^sup>2 \<le> 1/4" using assms by auto
+    then show ?thesis by auto 
+  qed
   finally have "1 \<le> (2^n - 1) * \<beta>\<^sup>2 + 1/4" by auto
   then have "3/4 \<le> (2^n - 1) * \<beta>\<^sup>2" by auto
   moreover have "((2::complex)^n - 1) \<ge> 1" using assms pow_2_n_half by auto
@@ -511,49 +533,27 @@ proof-
   then show "\<beta> \<ge> sqrt(3/(4*(2^n-1)))" using dim assms real_le_lsqrt by auto
 qed 
 
-lemma h1 [simp]: (*Find good name*)
-  fixes n::nat
-  assumes "n\<ge>1"
-  shows "(2^n-1)/2^(n-1) \<ge> (1::complex)" 
-proof-
-  have "(2^n-(1::complex))/2^(n-1) = 2^n/2^(n-1) - 1/2^(n-1)" 
-    using assms diff_divide_distrib by blast
-  moreover have "(2::complex) ^ n = 2 * 2 ^ (n - 1)"
-      by (metis (no_types) assms le_add_diff_inverse power_add semiring_normalization_rules(33))
-  ultimately have "(2^n-(1::complex))/2^(n-1) = 2 - 1/2^(n-1)" by auto
-  then show  "(2^n-1)/2^(n-1) \<ge> (1::complex)" using assms by auto
-qed
-
-
 lemma (in grover) upper_bound_\<beta>_expr: (*was part of next lemma lower_bound_on_mean but made it complicated *)
   fixes \<alpha> \<beta>::complex 
   assumes "v = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))"
       and "state n v" 
-      and "\<alpha> \<le> 1/2" and "n\<ge>2" and "\<beta>\<ge>0" and "\<alpha>\<ge>0" 
+      and "\<alpha> \<le> 1/2" and "\<beta>\<ge>0" and "\<alpha>\<ge>0" 
     shows "\<beta>*((2^n-1))/2^(n-1) \<ge> sqrt(3/(4*(2^n-1))) * (2^n-1)/2^(n-1)" 
 proof-
-  have "amp v = (cmod (\<alpha>))\<^sup>2" using amplitude_x_def assms searched_dom by auto
-  then have "amp v \<le> 1/4" 
-    using amplitude_x_def assms searched_dom cmod_def t4 
-    by (metis Re_divide_numeral add.right_neutral cmod_power2 less_eq_complex_def one_complex.simps(1) 
-        power_mono power_one_over power_zero_numeral real_sqrt_four real_sqrt_pow2_iff zero_complex.simps(1) 
-        zero_complex.simps(2) zero_le_numeral)
-  moreover have "((2^n-1))/2^(n-1) \<ge> (1::nat)" using assms h1 by auto
+  have "(2^n-(1::complex))/2^(n-1) = 2^n/2^(n-1) - 1/2^(n-1)" 
+    using assms diff_divide_distrib by blast
+  moreover have "(2::complex) ^ n = 2 * 2 ^ (n - 1)" using dim by (simp add: power_eq_if)
+  ultimately have "(2^n-(1::complex))/2^(n-1) = 2 - 1/2^(n-1)" by auto
+  then have "(((2::complex)^n-1))/2^(n-1) \<ge> (1::complex)" using assms dim by auto
   moreover have "\<beta> \<ge> sqrt(3/(4*(2^n-1)))" using lower_bound_on_\<beta>[of v \<alpha> \<beta>] assms calculation by auto
-  ultimately show "\<beta>*((2^n-1))/2^(n-1) \<ge> sqrt(3/(4*(2^n-1))) * (2^n-1)/2^(n-1)" 
-    using assms  
-    by (simp add: divide_right_mono two_realpow_ge_one)
+  moreover have "0 \<le> ((2::complex) ^ n - 1) / 2 ^ (n - 1)" by simp
+  ultimately show "\<beta> * ((2^n-1))/2^(n-1) \<ge> (sqrt(3/(4*(2^n-1))) * (2^n-1)/2^(n-1))" 
+    using assms le_cpx_mult_right[of "sqrt(3/(4*(2^n-1)))" \<beta>  "((2^n-1))/2^(n-1)"] by auto
 qed
 
 
-(*Replace this by general version *)
-(*As n has to be at least 1 we introduce a modified introduction rule *)
-lemma ind_from_2:
-  assumes "n \<ge> 2"
-  assumes "P(2)" 
-  assumes "\<And>n. n \<ge> 2 \<Longrightarrow>  P n \<Longrightarrow> P (Suc n)"
-  shows " P n"
-  using nat_induct_at_least assms by auto
+
+
 
 lemma lower_bound_h1: (*What name would be appropriate?*)
   fixes n
@@ -561,7 +561,7 @@ lemma lower_bound_h1: (*What name would be appropriate?*)
   shows "(sqrt(3*(2^n-1))-1) *1/2^n \<ge> 1/(sqrt 2)^n"
 proof-
   have "sqrt(3*2^n-3)-1 \<ge> sqrt(2^n)" 
-  proof (induction n rule: ind_from_2){
+  proof (rule Nat.nat_induct_at_least){
     show "n\<ge>2" using assms by auto
   next
     show  "sqrt(3*2^2-3)-1 \<ge> sqrt(2^2)" by simp
@@ -570,7 +570,7 @@ proof-
     assume a0: "n\<ge>2" 
        and IH: "sqrt(3*2^n-3)-1 \<ge> sqrt(2^n)"
     (*also style does not work. Would be so good here :( *)
-    then have "sqrt(3*2^(Suc n)-3)-1 \<ge> sqrt(2*(3*2^n-3))-1" by simp
+    have "sqrt(3*2^(Suc n)-3)-1 \<ge> sqrt(2*(3*2^n-3))-1" by simp
     moreover have "sqrt(2*(3*2^n-3))-1 = sqrt(2)*sqrt(3*2^n-3)-1" 
       by (metis real_sqrt_mult)
     moreover have "sqrt(2)*sqrt(3*2^n-3)-1 \<ge> sqrt(2)*sqrt(3*2^n-3)-sqrt(2)" by auto
@@ -585,7 +585,7 @@ proof-
   then have "(-1 + sqrt(3*(2^n-1))) *1/2^n \<ge> sqrt(2^n)*1/2^n" 
     by (simp add: divide_right_mono)
   moreover have "1/(sqrt 2)^n = (sqrt 2)^n/2^n"
-  proof (induction n rule: ind_from_2){
+  proof (rule Nat.nat_induct_at_least){
     show "n\<ge>2" using assms by auto
   next
     show "1/(sqrt 2)^2 = (sqrt 2)^2/2^2" by simp
@@ -613,9 +613,8 @@ declare [[show_types]]
 
 lemma (in grover) lower_bound_on_mean: (*also style does not work why? Would be helpful*)
   fixes \<alpha> \<beta>::complex 
-  assumes "v = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))" (*All assumptions needed?*)
-      and "state n v" 
-      and "\<alpha> \<le> 1/2" and "n\<ge>2" and "\<beta>\<ge>0" and "\<alpha>\<ge>0" and "Im \<alpha> = 0" (*might be possible to take this one out*)
+  assumes "v = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))"  and "state n v" 
+      and "\<alpha> \<le> 1/2" and "n\<ge>2" and "\<beta>\<ge>0" and "\<alpha>\<ge>0" (*might be possible to take this one out*)
   shows "((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) \<ge> 1/(sqrt(2)^n)"
 proof-
   have "((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) = -\<alpha>/2^(n-1) + ((2^n-1)*\<beta>)/2^(n-1)"
@@ -629,7 +628,7 @@ proof-
       neg_le_iff_le numeral_One one_complex.simps(1) one_complex.simps(2) order.trans uminus_complex.sel(1) 
       uminus_complex.simps(2) by auto 
   moreover have f0: "(-\<alpha>)/2^(n-1) \<ge> (-1/2)/2^(n-1) " 
-    using t8[of "-1/2" "-\<alpha>" "2^(n-1)"] calculation by auto
+    using ge_cpx_div_real[of "-1/2" "-\<alpha>" "2^(n-1)"] calculation by auto
   ultimately have "((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) \<ge> (-1/2)/2^(n-1) + sqrt(3/(4*(2^n-1))) * (2^n-1)/2^(n-1)" using f0 by auto
   then have "... \<ge> (-(1/2) + sqrt(3/(4*(2^n-1))) * (2^n-1))*1/2^(n-1)"     
     using comm_semiring_class.distrib[of "-(1/2)" "sqrt(3/(4*(2^n-1))) * (2^n-1)" "1/2^(n-1)"] by auto
@@ -676,72 +675,124 @@ proof-
   ultimately show "((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>  \<ge> 1/(sqrt(2)^n) + \<alpha>" by simp
 qed
 
-lemma  (in grover) upper_bound_increase_amp_x:
+
+lemma (in grover) lower_bound_\<beta>:
+  fixes \<beta>::complex 
+  assumes "v = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))" and "state n v" 
+      and "Im \<alpha> = 0" and "Im \<beta> = 0"
+    shows "\<beta> \<le> 1/sqrt(2^n - 1)" 
+proof-
+  have "1 = (\<Sum>i<2^n. (cmod (v $$ (i,0)))\<^sup>2)"
+    using assms cpx_vec_length_def state_def by auto
+  also have "... = (\<Sum>i\<in>({0..<2^n}-{x}). (cmod (v $$ (i,0)))\<^sup>2) + (cmod (v $$ (x,0)))\<^sup>2"
+    by (smt atLeast0LessThan finite_atLeastLessThan lessThan_iff mem_Collect_eq searched_dom sum_diff1)
+  also have "... = (of_nat 2^n - 1)* \<beta>\<^sup>2 + (cmod (v $$ (x,0)))\<^sup>2"
+    using assms sum_without_x[of x "2^n" "\<beta>\<^sup>2"] searched_dom cmod_cpx_is_real[of \<beta>] by auto
+  also have "... = (2^n - 1) * \<beta>\<^sup>2 + (cmod (v $$ (x,0)))\<^sup>2"  by (simp add: of_nat_diff)
+  finally have f0: "1 = (2^n - 1) * \<beta>\<^sup>2 + (cmod (v $$ (x,0)))\<^sup>2" by auto
+  then have "1 = (2^n - 1) * \<beta>\<^sup>2 + \<alpha>\<^sup>2" using cmod_cpx_is_real[of \<alpha>] searched_dom assms by auto
+  then have "1 \<ge> (2^n - 1) * \<beta>\<^sup>2" using assms f0
+    by (smt Im_power_real Re_complex_of_real less_eq_complex_def plus_complex.simps(1) plus_complex.simps(2) zero_le_power2)
+  moreover have "1 \<ge> (2^n - 1) * \<beta>\<^sup>2 \<longrightarrow> \<beta>\<^sup>2 \<le> (1/(2^n - (1::real)))" for \<beta> using dim 
+    by (smt divide_right_mono nonzero_mult_div_cancel_left power_increasing power_one_right)
+  moreover have f1: "Re \<beta> = \<beta>" 
+    by (simp add: assms complex_is_Real_iff)
+  ultimately have "\<beta>\<^sup>2 \<le> (1/(2^n - 1))" using assms by auto 
+  then have "\<beta> \<le> sqrt(1/(2^n - 1))" using assms f1 by (simp add: real_le_rsqrt)
+  then show "\<beta> \<le> 1/sqrt((2^n - 1))" 
+    by (simp add: real_sqrt_divide)
+qed
+
+lemma u2:
+  assumes "n\<ge>1"
+  shows "1/sqrt(n) = sqrt(n)/n" 
+  by (metis assms divide_divide_eq_right mult.left_neutral order_trans real_div_sqrt zero_le_one)
+
+
+(*Question for all lemmas to clarify: fix them as reals? *)
+lemma (in grover) upper_bound_increase_amp_x:
   fixes \<alpha> \<beta>::complex 
   assumes "v = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))"
-      and "state n v" 
-      and "\<alpha> \<le> 1/2" and "n\<ge>2" and "\<beta>\<ge>0" and "\<alpha>\<ge>0" and "Im \<alpha> = 0"
+      and "state n v" and "\<beta>\<ge>0" and "\<alpha>\<ge>0"
     shows "((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta> \<le> \<alpha> + 2/sqrt(2^n)"
 proof-
   have "((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>  = ((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) + \<alpha>" 
     using app_diffusion_op_index_x_recurence by auto
-  moreover have "((-\<alpha> + (2^n-1)*\<beta>)/2^(n-1)) \<le> ((2^n-1)*\<beta>)/2^(n-1)" 
+  also have "...  \<le> ((2^n-1)*\<beta>)/2^(n-1) + \<alpha>" 
     using lower_bound_on_mean assms by (simp add: divide_right_mono)
-  ultimately have "((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta>  \<le> ((2^n-1)*\<beta>)/2^(n-1)  + \<alpha>" by auto
-
-  moreover have "\<beta> \<le> sqrt(1/(2^n - 1))" 
-  proof-
-    have "1 = (\<Sum>i<2^n. (cmod (v $$ (i,0)))\<^sup>2)"
-      using assms cpx_vec_length_def state_def by auto
-    then have "1 = (\<Sum>i\<in>({0..<2^n}-{x}). (cmod (v $$ (i,0)))\<^sup>2) + (cmod (v $$ (x,0)))\<^sup>2"
-      by (smt atLeast0LessThan finite_atLeastLessThan lessThan_iff mem_Collect_eq searched_dom sum_diff1)
-    then have "1 = (of_nat 2^n - 1)* \<beta>\<^sup>2 + (cmod (v $$ (x,0)))\<^sup>2" 
-      using assms sum_without_x[of x "2^n" "\<beta>\<^sup>2"] searched_dom t4[of \<beta>] sorry
-    then have "1 = (2^n - 1) * \<beta>\<^sup>2 + (cmod (v $$ (x,0)))\<^sup>2"  by (simp add: of_nat_diff)
-    moreover have "(cmod (v $$ (x,0)))\<^sup>2 \<ge> 0 \<and> (2^n - 1) * \<beta>\<^sup>2 \<ge>0" sorry
-    ultimately have "1 \<ge> (2^n - 1) * \<beta>\<^sup>2" sorry
-    then have "\<beta>\<^sup>2 \<le> (1/(2^n - 1))" sorry
-    then show "\<beta> \<le> sqrt(1/(2^n - 1))" sorry
-  qed
-  
-  ultimately have "((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta> \<le> ((2^n-1)*sqrt(1/(2^n - 1)))/2^(n-1) + \<alpha>" 
-    sorry
-  then have  "((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta> \<le> sqrt(2^n - 1)/2^(n-1) + \<alpha>" sorry
-  then have  "((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta> \<le> 2* sqrt(2^n - 1)/2^n + \<alpha>" sorry
-  then show  "((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta> \<le> \<alpha> + 2/sqrt(2^n)" sorry
+  also have "... \<le> (2^n-1)/2^(n-1)*complex_of_real (1/sqrt(2^n - 1)) + \<alpha>" 
+    using assms le_cpx_mult_left[of \<beta> "1/sqrt(2^n - 1)" "(2^n-1)/2^(n-1)" ] assms lower_bound_\<beta> by auto
+  also have "... \<le> 1/2^(n-1)* ((2^n-1)/sqrt(2^n - 1)) + \<alpha>" by auto
+  also have "... \<le> sqrt(2^n - 1)/2^(n-1) + \<alpha>" by (simp add: real_div_sqrt)
+  also have "... \<le> sqrt(2^n - 1) * 2/2^n + \<alpha>" by (simp add: power_eq_if)
+  also have "... \<le> 2/2^n * sqrt(2^n - 1) + \<alpha>" by (simp add: mult.commute)
+  also have "... \<le> 2/2^n * sqrt(2^n) + \<alpha>" using le_cpx_mult_left[of "sqrt(2^n - 1)" "sqrt(2^n)" "2/2^n"] by simp
+  also have "... \<le> 2 * sqrt(2^n)/2^n + \<alpha>"  by simp
+  also have "... \<le> \<alpha> + 2/sqrt(2^n)" using u2[of "2^n"] by simp
+  finally show "((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta> \<le> \<alpha> + 2/sqrt(2^n)" by simp
 qed
+
+
+
+
+
+
+
+
+
+
+
+
+(*------------------------------------------------------------------------------------------------------------------*)
+(*------------------------------------------------------------------------------------------------------------------*)
+(*------------------------------------------------------------------------------------------------------------------*)
 
 (*Find new name and notation*)
 (*ATTENTION THIS IS NOT A QUANTUM GATE. Is this legit?*)
 definition(in grover) q_oracel_fst::"complex Matrix.mat" ("O'") where
-"q_oracel_fst = Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -1 else (if i=j then 1 else 0))"
+"q_oracel_fst = Matrix.mat (2^n) (2^n) (\<lambda>(i,j). if (i=x \<and> i=j) then -1 else (if i=j then 1 else 0))"
+
+lemma (in grover) q_oracel_fst_values:
+  assumes "i<dim_row O' \<and> j<dim_col O'" and "i\<noteq>j" and "i\<noteq>x" 
+  shows "(O' $$ (i,j)) = 0" 
+  using assms q_oracel_fst_def by auto
 
 lemma (in grover) app_oracle':
-  fixes \<alpha> \<beta>
+  fixes \<alpha> \<beta>::complex
   defines "v \<equiv> (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))"
   defines "w \<equiv> (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -\<alpha> else \<beta>))"
   shows "O' * v = w"
 proof
   fix i j
-  assume "i < dim_row w" and "j < dim_col w" 
-  then have "(O' * v) $$ (i, j) = (\<Sum>k<dim_row v. (O' $$ (i,k)) * (v $$ (k,j)))" sorry
-  (* "i < dim_row A" and "j < dim_col B" and "dim_col A = dim_row B"*)
+  assume a0: "i < dim_row w" and a1: "j < dim_col w" 
+  then have f0: "i < dim_row O' \<and> j < dim_col v" and "dim_col O' = dim_row v"
+    using q_oracel_fst_def w_def v_def by auto
+  then have "(O' * v) $$ (i, j) = (\<Sum>k \<in> {0..<2^n}. (O' $$ (i,k)) * (v $$ (k,j)))" 
+    using index_matrix_prod v_def by (simp add: atLeast0LessThan)
+  then have "(O' * v) $$ (i, j) = (\<Sum>k \<in> ({0..<2^n}-{i}). (O' $$ (i,k)) * (v $$ (k,j))) + (O' $$ (i,i)) * (v $$ (i,j))" 
+    by (metis (no_types, lifting) a0 add.commute atLeast0LessThan dim_row_mat(1) finite_atLeastLessThan insert_Diff insert_Diff_single lessThan_iff sum.insert_remove w_def)
+  then have "(O' * v) $$ (i, j) = (\<Sum>k \<in> ({0..<2^n}-{i}). 0 * (v $$ (k,j))) + (O' $$ (i,i)) * (v $$ (i,j))" 
+    using q_oracel_fst_def f0 v_def by auto
+  then have f1: "(O' * v) $$ (i, j) =  (O' $$ (i,i)) * (v $$ (i,j))"  by auto
   show "(O' * v) $$ (i, j) = w $$ (i, j)"
   proof (rule disjE)
     show "i=x \<or> i\<noteq>x" by auto
   next
-    assume "i=x"
-    have "(\<Sum>k \<in> {0..<2^n}. (O' $$ (i,k)) * (v $$ (k,j))) 
-        = (\<Sum>k \<in> ({0..<2^n}-{i}). (O' $$ (i,k)) * (v $$ (k,j))) + (O' $$ (i,i)) * (v $$ (i,j))" sorry
-    show "(O' * v) $$ (i, j) = w $$ (i, j)" sorry
+    assume a2: "i\<noteq>x"
+    then have "(O' * v) $$ (i, j) = \<beta>" using f0 f1 q_oracel_fst_def v_def by auto
+    then show "(O' * v) $$ (i, j) = w $$ (i, j)" 
+      using w_def a2 f0 a1 dim_row_mat(1) index_mat(1) old.prod.case q_oracel_fst_def by auto
   next 
-    assume "i\<noteq>x"
-    show "(O' * v) $$ (i, j) = w $$ (i, j)" sorry
+    assume a2: "i=x"
+    then have "(O' * v) $$ (i, j) = (-1) * \<alpha>" using f0 f1 q_oracel_fst_def v_def by auto
+    then show "(O' * v) $$ (i, j) = w $$ (i, j)" using w_def a2 f0 q_oracel_fst_def v_def by auto
   qed
 next
-  show "dim_row (O' * v) = dim_row w" sorry
+  show "dim_row (O' * v) = dim_row w" 
+    using v_def w_def q_oracel_fst_def by auto
 next
-  show "dim_col (O' * v) = dim_col w" sorry
+  show "dim_col (O' * v) = dim_col w" 
+    using v_def w_def q_oracel_fst_def by auto
 qed
 
 lemma(in grover) O_O'_relation: (*Rename*)
@@ -751,7 +802,7 @@ lemma(in grover) O_O'_relation: (*Rename*)
 proof-
   have "O * (v \<Otimes> (H * |one\<rangle>)) = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -\<alpha> else \<beta>)) \<Otimes> (H * |one\<rangle>)"
     using app_oracle v_def by blast
-  moreover have "(O' * v) \<Otimes> (H * |one\<rangle>) = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -\<alpha> else \<beta>))\<Otimes> (H * |one\<rangle>)" 
+  moreover have "(O' * v) \<Otimes> (H * |one\<rangle>) = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -\<alpha> else \<beta>)) \<Otimes> (H * |one\<rangle>)" 
     using app_oracle' v_def by auto
   ultimately show "O * (v \<Otimes> (H * |one\<rangle>)) = (O' * v) \<Otimes> (H * |one\<rangle>)" by auto
 qed
@@ -768,12 +819,43 @@ primrec (in grover) grover_it_fst::"nat\<Rightarrow>complex Matrix.mat" where
 "grover_it_fst (Suc m) = D * (O' * (grover_it_fst m))"
 
 lemma (in grover) dim_grover_it_fst:
-  shows "dim_row (grover_it_fst m) = 2^n"
-  and "dim_col (grover_it_fst m) = 1" sorry
+  shows "dim_row (grover_it_fst m) = 2^n \<and> dim_col (grover_it_fst m) = 1"
+proof(induction m)
+  show "dim_row (grover_it_fst 0) = 2^n \<and> dim_col (grover_it_fst 0) = 1" by auto
+next
+  fix m
+  assume IH: "dim_row (grover_it_fst m) = 2^n \<and> dim_col (grover_it_fst m) = 1"
+  then show "dim_row (grover_it_fst (Suc m)) = 2^n \<and> dim_col (grover_it_fst (Suc m)) = 1" 
+    by (simp add: IH diffusion_is_gate gate.dim_row)
+qed
 
 lemma (in grover) grover_it_fst_res:
-  shows "\<exists>\<alpha> \<beta>. (grover_it_fst m) = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))"
-  sorry
+  shows "\<exists>\<alpha> \<beta>::complex. (grover_it_fst m) = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))"
+proof(induction m)
+  show "\<exists>\<alpha> \<beta>::complex. (grover_it_fst 0) = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))"
+  proof(rule exI, rule exI)
+    have "(grover_it_fst 0) = Matrix.mat (2^n) 1 (\<lambda>(i,j). 1/(sqrt(2))^n)" by auto
+    then have "(grover_it_fst 0) = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then  1/(sqrt(2))^n else 1/(sqrt(2))^n))" 
+      by auto
+    then show "(grover_it_fst 0) = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then (1/(sqrt(2))^n) else (1/(sqrt(2))^n::complex)))"  
+      by auto
+  qed
+next
+  fix m 
+  assume IH: "\<exists>\<alpha> \<beta>::complex. (grover_it_fst m) = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))"
+  obtain \<alpha> \<beta> where  "(grover_it_fst m) = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))"
+    using IH by auto
+  then have "(grover_it_fst (Suc m)) = D * (O' * (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>)))"
+    by auto
+  then have "(grover_it_fst (Suc m)) = D * (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -\<alpha> else \<beta>))"
+    using app_oracle'[of "\<alpha>" "\<beta>"] by simp
+  then have "(grover_it_fst (Suc m)) = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta> 
+                                                                          else 1/2^(n-1)*-\<alpha> + (-1+2^(n-1))/2^(n-1)*\<beta>))"
+    by (simp add: app_diffusion_op)
+  then show  "\<exists>\<alpha> \<beta>::complex. (grover_it_fst (Suc m)) = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))"
+    by blast
+qed
+
 
 lemma(in grover) h1:
   assumes "(grover_it m) = (grover_it_fst m) \<Otimes> (H * |one\<rangle>)"
@@ -806,6 +888,92 @@ next
                  = (D * (O' * (grover_it_fst m))) \<Otimes> (H * |one\<rangle>)" by auto
   then show "grover_it (Suc m) = (grover_it_fst (Suc m)) \<Otimes> (H * |one\<rangle>)" by auto
 qed
+
+lemma (in grover) grover_it_fst_res_ex: (*Other lemma about result might be easier to proof with this, rename*)
+  assumes "k<2^n" and "x\<noteq>k"
+  shows "grover_it_fst (Suc m)
+      = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*((grover_it_fst m) $$ (x,0)) 
+                                               + (2^n-1)/(2^(n-1))*((grover_it_fst m) $$ (k,0))
+                                             else 1/2^(n-1)*-((grover_it_fst m) $$ (x,0)) 
+                                               + (-1+2^(n-1))/2^(n-1)*((grover_it_fst m) $$ (k,0)) ))" 
+proof(induction m)
+  have "grover_it_fst (Suc 0) = D * (O' *(Matrix.mat (2^n) 1 (\<lambda>(i,j). 1/(sqrt(2))^n)))" by auto
+  moreover have "(Matrix.mat (2^n) 1 (\<lambda>(i,j). 1/(sqrt(2))^n)) = 
+                 (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then 1/(sqrt(2))^n else 1/(sqrt(2))^n))" sorry
+  ultimately have "grover_it_fst (Suc 0) = D * (O' *(Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then 1/(sqrt(2))^n else 1/(sqrt(2))^n)))" 
+    sorry
+
+  then have "grover_it_fst (Suc 0) = D * (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -(1/(sqrt(2))^n) else 1/sqrt(2)^n))"
+    using app_oracle'[of "1/(sqrt(2))^n" "1/sqrt(2)^n"] sorry
+
+  show "grover_it_fst (Suc 0)
+      = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*((grover_it_fst 0) $$ (x,0)) 
+                                               + (2^n-1)/(2^(n-1))*((grover_it_fst 0) $$ (k,0))
+                                             else 1/2^(n-1)*-((grover_it_fst 0) $$ (x,0)) 
+                                               + (-1+2^(n-1))/2^(n-1)*((grover_it_fst 0) $$ (k,0))))" sorry 
+
+next
+  fix m
+  define \<alpha>m where "\<alpha>m = ((grover_it_fst m)$$(x,0))"
+  define \<beta>m where "\<beta>m = ((grover_it_fst m)$$(k,0))"
+  define \<alpha>m1 where "\<alpha>m1 = ((grover_it_fst (Suc m))$$(x,0))"
+  define \<beta>m1 where "\<beta>m1 = ((grover_it_fst (Suc m))$$(k,0))"
+  assume IH: "grover_it_fst (Suc m)
+      = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*((grover_it_fst m) $$ (x,0)) 
+                                               + (2^n-1)/(2^(n-1))*((grover_it_fst m) $$ (k,0))
+                                             else 1/2^(n-1)*-((grover_it_fst m) $$ (x,0)) 
+                                               + (-1+2^(n-1))/2^(n-1)*((grover_it_fst m) $$ (k,0)) ))" 
+  have f0: "\<alpha>m1 = ((2^(n-1)-1)/2^(n-1))*\<alpha>m + (2^n-1)/(2^(n-1))*\<beta>m" 
+    using IH searched_dom \<alpha>m1_def \<alpha>m_def \<beta>m_def by auto
+  have f1: "\<beta>m1 = 1/2^(n-1)*-\<alpha>m + (-1+2^(n-1))/2^(n-1)*\<beta>m" 
+    using IH assms \<beta>m1_def \<alpha>m_def \<beta>m_def by auto
+
+  have "grover_it_fst (Suc (Suc m)) = D * (O' * (grover_it_fst (Suc m)))" by auto
+  then have "grover_it_fst (Suc (Suc m))
+             = D * (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -(((2^(n-1)-1)/2^(n-1))*\<alpha>m + (2^n-1)/(2^(n-1))*\<beta>m)
+                                                   else 1/2^(n-1)*-\<alpha>m + (-1+2^(n-1))/2^(n-1)*\<beta>m))"
+    using app_oracle' IH \<alpha>m_def \<beta>m_def by auto
+  then have "grover_it_fst (Suc (Suc m))
+          = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*((((2^(n-1)-1)/2^(n-1))*\<alpha>m + (2^n-1)/(2^(n-1))*\<beta>m)) 
+                                                     + (2^n-1)/(2^(n-1))*(1/2^(n-1)*-\<alpha>m + (-1+2^(n-1))/2^(n-1)*\<beta>m)
+                                             else 1/2^(n-1)*-((((2^(n-1)-1)/2^(n-1))*\<alpha>m + (2^n-1)/(2^(n-1))*\<beta>m)) 
+                                                     + (-1+2^(n-1))/2^(n-1)*(1/2^(n-1)*-\<alpha>m + (-1+2^(n-1))/2^(n-1)*\<beta>m) ))"
+      using app_diffusion_op by auto
+  moreover have "((2^(n-1)-1)/2^(n-1))*((((2^(n-1)-1)/2^(n-1))*\<alpha>m + (2^n-1)/(2^(n-1))*\<beta>m)) 
+               + (2^n-1)/(2^(n-1))*(1/2^(n-1)*-\<alpha>m + (-1+2^(n-1))/2^(n-1)*\<beta>m)
+               = ((2^(n-1)-1)/2^(n-1))*\<alpha>m1 + (2^n-1)/(2^(n-1))*\<beta>m1" 
+    using f0 f1 by auto
+  moreover have "1/2^(n-1)*-((((2^(n-1)-1)/2^(n-1))*\<alpha>m + (2^n-1)/(2^(n-1))*\<beta>m)) 
+               + (-1+2^(n-1))/2^(n-1)*(1/2^(n-1)*-\<alpha>m + (-1+2^(n-1))/2^(n-1)*\<beta>m)
+               = 1/2^(n-1)*-\<alpha>m1 + (-1+2^(n-1))/2^(n-1)*\<beta>m1"  
+    using f0 f1 by auto
+  ultimately have "grover_it_fst (Suc (Suc m))
+              = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then  ((2^(n-1)-1)/2^(n-1))*\<alpha>m1 + (2^n-1)/(2^(n-1))*\<beta>m1
+                                             else 1/2^(n-1)*-\<alpha>m1 + (-1+2^(n-1))/2^(n-1)*\<beta>m1 ))" 
+    by auto
+  then show "grover_it_fst (Suc (Suc m))
+      = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*((grover_it_fst (Suc m)) $$ (x,0)) 
+                                               + (2^n-1)/(2^(n-1))*((grover_it_fst (Suc m)) $$ (k,0))
+                                             else 1/2^(n-1)*-((grover_it_fst (Suc m)) $$ (x,0)) 
+                                               + (-1+2^(n-1))/2^(n-1)*((grover_it_fst (Suc m)) $$ (k,0)) ))" 
+     using \<alpha>m1_def \<beta>m1_def by auto
+qed
+
+
+lemma (in grover) grover_it_res_pos_real:
+  shows "Im ((grover_it_fst m) $$ (x,0)) = 0" and "((grover_it_fst m) $$ (x,0))\<ge>0"
+  sorry
+
+
+lemma (in grover) grover_it_prob_inc: 
+  shows "(grover_it_fst (Suc m)) $$ (x,0) \<le> (grover_it_fst m) $$ (x,0) + 2/sqrt(2)^n" sorry
+
+
+
+
+
+
+
 
 
 
@@ -892,60 +1060,6 @@ lemma (in grover) is_state_grover_it_fst:
  shows "state n (grover_it' m)" sorry
 
 
-lemma (in grover)
-  assumes "k<2^n" and "x\<noteq>k"
-  shows "grover_it_fst (Suc m)
-      = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*((grover_it_fst m) $$ (x,0)) 
-                                               + (2^n-1)/(2^(n-1))*((grover_it_fst m) $$ (k,0))
-                                             else 1/2^(n-1)*-((grover_it_fst m) $$ (x,0)) 
-                                               + (-1+2^(n-1))/2^(n-1)*((grover_it_fst m) $$ (k,0)) ))" 
-  proof(induction m)
-    fix m
-    assume IH: "grover_it_fst (Suc m)
-      = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*((grover_it_fst m) $$ (x,0)) 
-                                               + (2^n-1)/(2^(n-1))*((grover_it_fst m) $$ (k,0))
-                                             else 1/2^(n-1)*-((grover_it_fst m) $$ (x,0)) 
-                                               + (-1+2^(n-1))/2^(n-1)*((grover_it_fst m) $$ (k,0)) ))" 
-    define \<alpha>m where "\<alpha>m = ((grover_it_fst m)$$(x,0))"
-    define \<beta>m where "\<beta>m = ((grover_it_fst m)$$(k,0))"
-    define \<alpha>m1 where "\<alpha>m1 = ((grover_it_fst (Suc m))$$(x,0))"
-    define \<beta>m1 where "\<beta>m1 = ((grover_it_fst (Suc m))$$(k,0))"
-    have "\<alpha>m1 = ((2^(n-1)-1)/2^(n-1))*((grover_it_fst m) $$ (x,0)) 
-                                               + (2^n-1)/(2^(n-1))*((grover_it_fst m) $$ (k,0))" 
-      using IH \<alpha>m_def \<beta>m_def \<alpha>m1_def sorry
-    have "\<beta>m1 = 1/2^(n-1)*-\<alpha>m + (-1+2^(n-1))/2^(n-1)*\<beta>m" sorry
-
-    have "grover_it_fst (Suc m)
-      = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*\<alpha>m + (2^n-1)/(2^(n-1))*\<beta>m
-                                             else 1/2^(n-1)*-\<alpha>m + (-1+2^(n-1))/2^(n-1)*\<beta>m))"  
-      using IH \<alpha>m_def \<beta>m_def by auto
-    have "grover_it_fst (Suc (Suc m)) = D * (O' * (grover_it_fst (Suc m)))" by auto
-    then have "grover_it_fst (Suc (Suc m))
-             = D * (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -(((2^(n-1)-1)/2^(n-1))*\<alpha>m + (2^n-1)/(2^(n-1))*\<beta>m)
-                                             else 1/2^(n-1)*-\<alpha>m + (-1+2^(n-1))/2^(n-1)*\<beta>m))"
-      using app_oracle' IH \<alpha>m_def \<beta>m_def by auto
-    then have "grover_it_fst (Suc (Suc m))
-            = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*((((2^(n-1)-1)/2^(n-1))*\<alpha>m + (2^n-1)/(2^(n-1))*\<beta>m)) 
-                                                     + (2^n-1)/(2^(n-1))*(1/2^(n-1)*-\<alpha>m + (-1+2^(n-1))/2^(n-1)*\<beta>m)
-                                             else 1/2^(n-1)*-((((2^(n-1)-1)/2^(n-1))*\<alpha>m + (2^n-1)/(2^(n-1))*\<beta>m)) 
-                                                     + (-1+2^(n-1))/2^(n-1)*(1/2^(n-1)*-\<alpha>m + (-1+2^(n-1))/2^(n-1)*\<beta>m) ))"
-      using app_diffusion_op by auto
-    moreover have "((2^(n-1)-1)/2^(n-1))*((((2^(n-1)-1)/2^(n-1))*\<alpha>m + (2^n-1)/(2^(n-1))*\<beta>m)) 
-                                                     + (2^n-1)/(2^(n-1))*(1/2^(n-1)*-\<alpha>m + (-1+2^(n-1))/2^(n-1)*\<beta>m)
-    = ((2^(n-1)-1)/2^(n-1))*\<alpha>m1 + (2^n-1)/(2^(n-1))*\<beta>m1" sorry
-    moreover have "1/2^(n-1)*-((((2^(n-1)-1)/2^(n-1))*\<alpha>m + (2^n-1)/(2^(n-1))*\<beta>m)) 
-                   + (-1+2^(n-1))/2^(n-1)*(1/2^(n-1)*-\<alpha>m + (-1+2^(n-1))/2^(n-1)*\<beta>m)
-    = 1/2^(n-1)*-\<alpha>m1 + (-1+2^(n-1))/2^(n-1)*\<beta>m1" sorry
-    ultimately have "grover_it_fst (Suc (Suc m))
-            = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then  ((2^(n-1)-1)/2^(n-1))*\<alpha>m1 + (2^n-1)/(2^(n-1))*\<beta>m1
-                                             else 1/2^(n-1)*-\<alpha>m1 + (-1+2^(n-1))/2^(n-1)*\<beta>m1 ))" sorry
-    then show "grover_it_fst (Suc (Suc m))
-      = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*((grover_it_fst (Suc m)) $$ (x,0)) 
-                                               + (2^n-1)/(2^(n-1))*((grover_it_fst (Suc m)) $$ (k,0))
-                                             else 1/2^(n-1)*-((grover_it_fst (Suc m)) $$ (x,0)) 
-                                               + (-1+2^(n-1))/2^(n-1)*((grover_it_fst (Suc m)) $$ (k,0)) ))" 
-      sorry
-  qed
 
 
 
