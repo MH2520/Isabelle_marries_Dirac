@@ -708,12 +708,16 @@ proof-
     using assms le_cpx_mult_left[of \<beta> "1/sqrt(2^n - 1)" "2*(2^n-1)/2^n" ] assms lower_bound_\<beta> by auto
   also have "... \<le> 2/2^n*complex_of_real ((2^n-1)/sqrt(2^n - 1)) + \<alpha>" by auto
   also have "... \<le> 2/2^n*complex_of_real (sqrt(2^n - 1)) + \<alpha>" using real_div_sqrt by simp
-    also have "... \<le> 2/2^n * sqrt(2^n - 1) + \<alpha>" by (simp add: mult.commute)
+  also have "... \<le> 2/2^n * sqrt(2^n - 1) + \<alpha>" by (simp add: mult.commute)
   also have "... \<le> 2/2^n * sqrt(2^n) + \<alpha>" using le_cpx_mult_left[of "sqrt(2^n - 1)" "sqrt(2^n)" "2/2^n"] by simp
   also have "... \<le> 2 * sqrt(2^n)/2^n + \<alpha>"  by simp
   also have "... \<le> \<alpha> + 2/sqrt(2^n)" using u2[of "2^n"] by simp
   finally show "((2^(n-1)-1)/2^(n-1))*\<alpha> + (2^n-1)/(2^(n-1))*\<beta> \<le> \<alpha> + 2/sqrt(2^n)" by simp
 qed
+
+
+
+
 
 
 
@@ -839,17 +843,9 @@ next
 qed
 
 
-lemma(in grover) h1:
-  assumes "(grover_it m) = (grover_it_fst m) \<Otimes> (H * |one\<rangle>)"
-  shows "O * (grover_it m) = (O' * (grover_it_fst m)) \<Otimes> (H * |one\<rangle>)" 
-proof-
-  have "O * (grover_it m) = O * ((grover_it_fst m) \<Otimes> (H * |one\<rangle>))" using assms by auto
-  moreover have "O * ((grover_it_fst m) \<Otimes> (H * |one\<rangle>)) = (O' * (grover_it_fst m)) \<Otimes> (H * |one\<rangle>)" 
-    using O_O'_relation by (metis grover_it_fst_res)
-  ultimately show "O * (grover_it m) = (O' * (grover_it_fst m)) \<Otimes> (H * |one\<rangle>)" by auto
-qed 
 
-lemma (in grover)
+
+lemma (in grover) h1:
   shows "grover_it m = (grover_it_fst m) \<Otimes> (H * |one\<rangle>)" 
 proof(induction m)
   show  "grover_it 0 = (grover_it_fst 0) \<Otimes> (H * |one\<rangle>)" by auto
@@ -871,10 +867,63 @@ next
   then show "grover_it (Suc m) = (grover_it_fst (Suc m)) \<Otimes> (H * |one\<rangle>)" by auto
 qed
 
+
+lemma(in grover) h2:
+  shows "O * (grover_it m) = (O' * (grover_it_fst m)) \<Otimes> (H * |one\<rangle>)" 
+proof-
+  have "O * (grover_it m) = O * ((grover_it_fst m) \<Otimes> (H * |one\<rangle>))" using h1 by auto
+  moreover have "O * ((grover_it_fst m) \<Otimes> (H * |one\<rangle>)) = (O' * (grover_it_fst m)) \<Otimes> (H * |one\<rangle>)" 
+    using O_O'_relation by (metis grover_it_fst_res)
+  ultimately show "O * (grover_it m) = (O' * (grover_it_fst m)) \<Otimes> (H * |one\<rangle>)" by auto
+qed 
+
+lemma (in grover) O'_res_is_state:
+  fixes \<alpha> \<beta>
+  defines "v \<equiv> (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))"
+  assumes "state n v"
+  shows "state n (O' * v)"
+proof-
+  have f0: "(O' * v) = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -\<alpha> else \<beta>))" 
+    using app_oracle' v_def by blast
+  then have "\<parallel>Matrix.col v 0\<parallel> = 1" using assms state.length by blast
+  then have "1 = sqrt(\<Sum>i\<in>{0..<2^n}. (cmod ((Matrix.col v 0) $ i))\<^sup>2)"
+    using cpx_vec_length_def atLeast0LessThan v_def by auto 
+  then have "1 = sqrt((\<Sum>i\<in>{0..<2^n}-{x}. (cmod ((Matrix.col v 0) $ i))\<^sup>2) + (cmod ((Matrix.col v 0) $ x))\<^sup>2)" 
+    using searched_dom by (simp add: sum_diff1)
+  moreover have "(cmod ((Matrix.col v 0) $ x))\<^sup>2 = (cmod ((Matrix.col (O' * v) 0) $ x))\<^sup>2" using v_def searched_dom f0 by auto
+  ultimately have "1 = sqrt((\<Sum>i\<in>{0..<2^n}-{x}. (cmod ((Matrix.col v 0) $ i))\<^sup>2) + (cmod ((Matrix.col (O' * v) 0) $ x))\<^sup>2)" 
+    by simp
+  moreover have "i<2^n\<and>i\<noteq>x \<longrightarrow> (cmod ((Matrix.col v 0) $ i))\<^sup>2 = (cmod ((Matrix.col (O' * v) 0) $ i))\<^sup>2" for i::nat  
+    using v_def searched_dom f0 by auto 
+  ultimately have "1 = sqrt((\<Sum>i\<in>{0..<2^n}-{x}. (cmod ((Matrix.col (O' * v) 0) $ i))\<^sup>2) + (cmod ((Matrix.col (O' * v) 0) $ x))\<^sup>2)" 
+    by auto
+  then have "1 = sqrt((\<Sum>i\<in>{0..<2^n}. (cmod ((Matrix.col (O' * v) 0) $ i))\<^sup>2))" 
+    using searched_dom by (simp add: sum_diff1)
+  then have "1 = \<parallel>Matrix.col (O' * v) 0\<parallel>"
+    using assms state.length f0 atLeast0LessThan cpx_vec_length_def by auto
+  moreover have "dim_col (O' * v) = 1" by (simp add: f0)
+  moreover have "dim_row (O' * v) = 2^n" by (simp add: f0)
+  ultimately show "state n (O' * v)" using state_def by auto
+qed
+
+lemma (in grover) is_state_grover_it_fst:
+  fixes \<alpha> \<beta>
+  shows "state n (grover_it_fst m)"
+proof(induction m)
+  show "state n (grover_it_fst 0)" 
+    using \<psi>\<^sub>1\<^sub>0_is_state dim by auto
+next
+  fix m 
+  assume IH: "state n (grover_it_fst m)"
+  have "(grover_it_fst (Suc m)) = D * (O' * (grover_it_fst m))" by auto
+  moreover have "state n (O' * (grover_it_fst m))" using O'_res_is_state grover_it_fst_res by (metis IH)
+  ultimately show "state n (grover_it_fst (Suc m))" 
+    using diffusion_is_gate by auto
+qed
+
 lemma \<psi>\<^sub>1_different_rep:
   shows "(Matrix.mat (2^n) 1 (\<lambda>(i,j). 1/(sqrt(2))^n)) = 
                  (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then 1/(sqrt(2))^n else 1/(sqrt(2))^n))" by auto
-
 
 lemma (in grover) grover_it_fst_res_ex: (*Other lemma about result might be easier to proof with this, rename*)
   assumes "k<2^n" and "x\<noteq>k"
@@ -884,27 +933,27 @@ lemma (in grover) grover_it_fst_res_ex: (*Other lemma about result might be easi
                                              else 1/2^(n-1)*-((grover_it_fst m) $$ (x,0))                  
                                                + (-1+2^(n-1))/2^(n-1)*((grover_it_fst m) $$ (k,0)) ))" 
 proof(induction m)
-  have f0: "complex_of_real (1/(sqrt(2))^n) = 1/(sqrt(2))^n" by simp
-  have f1: "-complex_of_real (1/(sqrt(2))^n) = -1/(sqrt(2))^n" by simp
-
-  moreover have "grover_it_fst (Suc 0) = D * (O' *(Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then 1/(sqrt(2))^n else 1/(sqrt(2))^n)))" 
-    using \<psi>\<^sub>1_different_rep by auto
-
-  have "(O' *(Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then (1/(sqrt(2))^n) else complex_of_real (1/(sqrt(2)))^n)))
-               = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -(1/(sqrt(2))^n) else (1/sqrt(2)^n) ))"
-    using app_oracle' power_one_over by fastforce
-  then have "(O' *(Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then (1/(sqrt(2))^n) else (1/(sqrt(2)))^n)))
-               = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -(1/(sqrt(2))^n) else (1/sqrt(2)^n) ))"
-    using f0 f1 sorry
-  ultimately have "grover_it_fst (Suc 0) = D * (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -(1/(sqrt(2))^n) else (1/sqrt(2)^n) ))"
-    using f1 by auto
-
-  show "grover_it_fst (Suc 0)
+  have "grover_it_fst (Suc 0) = D * (O' *(Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then (1/(sqrt(2))^n) else complex_of_real (1/(sqrt(2))^n) )))" 
+    apply (auto simp: \<psi>\<^sub>1_different_rep)
+    by (smt cong_mat of_real_divide prod.simps(2))
+  then have "grover_it_fst (Suc 0) = D * (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then -complex_of_real(1/(sqrt(2))^n) else (1/sqrt(2)^n) ))"
+    using app_oracle'[of "complex_of_real (1/sqrt(2)^n)" "(1/sqrt(2)^n)"]
+    by auto
+  then have "grover_it_fst (Suc 0) = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*(complex_of_real(1/(sqrt(2))^n)) 
+                                                                            + (2^n-1)/(2^(n-1))*(1/sqrt(2)^n)
+                                                                   else 1/2^(n-1)*-(complex_of_real(1/(sqrt(2))^n))
+                                                                            + (-1+2^(n-1))/2^(n-1)*(1/sqrt(2)^n) ))"
+    using app_diffusion_op by auto
+  moreover have "((grover_it_fst 0) $$ (x,0)) = (1/(sqrt(2))^n)" 
+    using searched_dom by auto
+  moreover have "((grover_it_fst 0) $$ (k,0)) = (1/(sqrt(2))^n)" 
+    by (simp add: assms(1))
+  ultimately show  "grover_it_fst (Suc 0)
       = (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then ((2^(n-1)-1)/2^(n-1))*((grover_it_fst 0) $$ (x,0)) 
                                                + (2^n-1)/(2^(n-1))*((grover_it_fst 0) $$ (k,0))
-                                             else 1/2^(n-1)*-((grover_it_fst 0) $$ (x,0)) 
-                                               + (-1+2^(n-1))/2^(n-1)*((grover_it_fst 0) $$ (k,0))))" sorry 
-
+                                             else 1/2^(n-1)*-((grover_it_fst 0) $$ (x,0))                  
+                                               + (-1+2^(n-1))/2^(n-1)*((grover_it_fst 0) $$ (k,0)) ))" 
+    by auto
 next
   fix m
   define \<alpha>m where "\<alpha>m = ((grover_it_fst m)$$(x,0))"
@@ -997,7 +1046,6 @@ lemma (in grover) grover_it_res_re:
   shows "\<forall>k. k<2^n \<longrightarrow> Re ((grover_it_fst m) $$ (k,0)) = (grover_it_fst m) $$ (k,0)"
   using grover_it_res_real by (simp add: complex_eqI)
 
-
 lemma (in grover) grover_it_res_pos:
   assumes "n\<ge>2"
   shows "\<forall>k. k<2^n \<longrightarrow> (grover_it_fst m) $$ (k,0)\<ge>0 \<and> (grover_it_fst m) $$ (k,0)\<le>1"
@@ -1032,7 +1080,8 @@ next
       have "(-1+2^(n-1))/2^(n-1)*\<beta> \<ge> (-1+2^(n-1))/2^(n-1)* sqrt(3/(4*(2^n-1)))" 
       proof-
         have "state n (Matrix.mat (2^n) 1 (\<lambda>(i,j). if i=x then \<alpha> else \<beta>))" 
-         and "\<alpha> \<le> 1/2" and "\<alpha>\<ge>0" and "\<beta>\<ge>0" sorry
+          using \<alpha>_def \<beta>_def is_state_grover_it_fst sorry
+        have "\<alpha> \<le> 1/2" and "\<alpha>\<ge>0" and "\<beta>\<ge>0" sorry
         then have "Re \<beta> \<ge> sqrt(3/(4*(2^n-1)))" using assms lower_bound_on_\<beta> by auto
         moreover have "(-1+2^(n-1))/2^(n-1) > (0::real)" using assms by auto
         ultimately have "(-1+2^(n-1))/2^(n-1)*(Re \<beta>) \<ge> (-1+2^(n-1))/2^(n-1)* sqrt(3/(4*(2^n-1)))" 
@@ -1050,9 +1099,15 @@ next
 
 
 
-lemma (in grover) grover_it_prob_inc: 
-  shows "(grover_it_fst (Suc m)) $$ (x,0) \<le> (grover_it_fst m) $$ (x,0) + 2/sqrt(2)^n" sorry
 
+
+
+
+lemma (in grover) grover_it_prob_inc:
+  shows "(grover_it_fst (Suc m)) $$ (x,0) \<le> (grover_it_fst m) $$ (x,0) + 2/sqrt(2)^n" 
+proof- 
+  have "k<2^n \<and> x\<noteq>k \<longrightarrow> (grover_it_fst (Suc m)) $$ (x,0) = ((2^(n-1)-1)/2^(n-1))*((grover_it_fst m) $$ (x,0)) 
+                                               + (2^n-1)/(2^(n-1))*((grover_it_fst m) $$ (k,0))" sorry
 
 
 
@@ -1080,22 +1135,6 @@ lemma (in grover)
 
 
 
-
-
-lemma (in grover) is_state_grover_it:
-  shows "state (n+1)(grover_it m)"
-proof(induction m)
-  show "state (n+1)(grover_it 0)" using \<psi>\<^sub>1_is_state dim by auto
-next
-  fix m
-  assume IH: "state (n+1)(grover_it m)"
-  moreover have "(grover_it (Suc m)) = (D\<Otimes>Id 1) * (O * (grover_it m))" 
-    using grover_it.simps(2) by blast
-  moreover have "gate (n+1) (D\<Otimes>Id 1)" and "gate (n+1) O" 
-    using diffusion_Id_is_gate q_oracle_is_gate by auto
-  ultimately show "state (n+1)(grover_it (Suc m))" 
-    using gate_on_state_is_state by auto
-qed
 
 
 
@@ -1356,6 +1395,52 @@ lemma (in grover)
 
 
 
+(*Does not hold as it is now?*)
+lemma (in grover)
+  fixes v'::"complex Matrix.mat"
+  defines "v \<equiv> sqrt(2) \<cdot>\<^sub>m v'"
+  shows "state (n+1) (v \<Otimes> (H * |one\<rangle>)) = state n v'"
+proof
+  assume a0: "state (n+1) (v \<Otimes> (H * |one\<rangle>))"
+  then have f0: "Matrix.dim_col v = 1"  using state_def by auto
+  have IH2: "Matrix.dim_row (v \<Otimes> (H * |one\<rangle>)) = 2^(n+1)" using a0 state.dim_row by blast
+  then have f1: "Matrix.dim_row v = 2^n"  using \<psi>\<^sub>1\<^sub>1_is_state state.dim_row by fastforce
+  have IH3: "\<parallel>Matrix.col (v \<Otimes> (H * |one\<rangle>)) 0\<parallel> = 1" using a0 state.length by auto
+  then have "1 = sqrt(\<Sum>i<dim_vec (Matrix.col (v \<Otimes> (H * |one\<rangle>)) 0). (cmod ((Matrix.col (v \<Otimes> (H * |one\<rangle>)) 0) $ i))\<^sup>2)" 
+    by (simp add: cpx_vec_length_def)
+  moreover have "sqrt(\<Sum>i<dim_vec (Matrix.col (v \<Otimes> (H * |one\<rangle>)) 0). (cmod ((Matrix.col (v \<Otimes> (H * |one\<rangle>)) 0) $ i))\<^sup>2 )
+               = sqrt(\<Sum>i\<in>{0..<2^(n+1)}. (cmod ((Matrix.col (v \<Otimes> (H * |one\<rangle>)) 0) $ i))\<^sup>2)" 
+    using IH2 atLeast0LessThan by auto
+  moreover have "sqrt(\<Sum>i\<in>{0..<2^(n+1)}. (cmod ((Matrix.col (v \<Otimes> (H * |one\<rangle>)) 0) $ i))\<^sup>2)
+               = sqrt(\<Sum>i\<in>({0..<2^(n+1)}). (cmod ((v \<Otimes> (H * |one\<rangle>)) $$ (i,0)))\<^sup>2)"  
+    using IH2 a0 state.dim_col by fastforce
+  moreover have "sqrt(\<Sum>i\<in>({0..<2^(n+1)}). (cmod ((v \<Otimes> (H * |one\<rangle>)) $$ (i,0)))\<^sup>2) 
+                = sqrt(\<Sum>i\<in>({0..<2^(n+1)}). (cmod (v $$ (i div 2,0) * (H * |one\<rangle>) $$ (i mod 2,0)) )\<^sup>2)"  
+    sorry
+  have "{0..<2^(n+1)} = {k. k\<in>{0..<2^(n+1)} \<and> even k} \<union> {k. k\<in>{0..<2^(n+1)} \<and> odd k}" sorry
+  moreover have "{k. k\<in>{0..<2^(n+1)} \<and> even k} \<union> {k. k\<in>{0..<2^(n+1)} \<and> odd k} = {}" sorry
+  moreover have "{} = {bot::nat..<2 ^ (1 + n)}" sorry
+  ultimately have "sqrt(\<Sum>i\<in>{0..<2^(n+1)}. (cmod (v $$ (i div 2,0) * (H * |one\<rangle>) $$ (i mod 2,0)) )\<^sup>2)
+                  = sqrt((\<Sum>i\<in>{k. k\<in>{0..<2^(n+1)} \<and> even k}. (cmod (v $$ (i div 2,0) * (H * |one\<rangle>) $$ (i mod 2,0)) )\<^sup>2) +
+                    (\<Sum>i\<in>{k. k\<in>{0..<2^(n+1)} \<and> odd k}. (cmod (v $$ (i div 2,0) * (H * |one\<rangle>) $$ (i mod 2,0)) )\<^sup>2))"   
+    by (simp add: bot_nat_def)
+  then have "sqrt(\<Sum>i\<in>{0..<2^(n+1)}. (cmod (v $$ (i div 2,0) * (H * |one\<rangle>) $$ (i mod 2,0)) )\<^sup>2)
+           = sqrt((\<Sum>i\<in>{k. k\<in>{0..<2^(n+1)} \<and> even k}. (cmod (v $$ (i div 2,0) * 1/sqrt(2) ))\<^sup>2) +
+             (\<Sum>i\<in>{k. k\<in>{0..<2^(n+1)} \<and> odd k}. (cmod (v $$ (i div 2,0) * -1/sqrt(2)))\<^sup>2))" sorry
+  then have "sqrt(\<Sum>i\<in>{0..<2^(n+1)}. (cmod (v $$ (i div 2,0) * (H * |one\<rangle>) $$ (i mod 2,0)) )\<^sup>2)
+           = sqrt(1/2*(\<Sum>i\<in>{k. k\<in>{0..<2^(n+1)} \<and> even k}. (cmod (v $$ (i div 2,0)))\<^sup>2) +
+             1/2*(\<Sum>i\<in>{k. k\<in>{0..<2^(n+1)} \<and> odd k}. (cmod (v $$ (i div 2,0)))\<^sup>2))" sorry
+  then have "sqrt(\<Sum>i\<in>{0..<2^(n+1)}. (cmod (v $$ (i div 2,0) * (H * |one\<rangle>) $$ (i mod 2,0)) )\<^sup>2)
+           = 1/sqrt(2) * sqrt((\<Sum>i\<in>{k. k\<in>{0..<2^(n+1)} \<and> even k}. (cmod (v $$ (i div 2,0)))\<^sup>2) +
+             (\<Sum>i\<in>{k. k\<in>{0..<2^(n+1)} \<and> odd k}. (cmod (v $$ (i div 2,0)))\<^sup>2))"sorry
+  then have "sqrt(\<Sum>i\<in>{0..<2^(n+1)}. (cmod (v $$ (i div 2,0) * (H * |one\<rangle>) $$ (i mod 2,0)) )\<^sup>2)
+           = 1/sqrt(2) * sqrt((\<Sum>i\<in>{0..<2^(n+1)}. (cmod (v $$ (i div 2,0)))\<^sup>2))"sorry
+  then have "sqrt(\<Sum>i\<in>{0..<2^(n+1)}. (cmod (v $$ (i div 2,0) * (H * |one\<rangle>) $$ (i mod 2,0)) )\<^sup>2)
+           = 1/sqrt(2) * sqrt((\<Sum>i\<in>{0..<2^n}. (cmod (v $$ (i,0)))\<^sup>2))"sorry
+  then have "sqrt(\<Sum>i\<in>{0..<2^(n+1)}. (cmod (v $$ (i div 2,0) * (H * |one\<rangle>) $$ (i mod 2,0)) )\<^sup>2)
+           = sqrt((\<Sum>i\<in>{0..<2^n}. (cmod (v' $$ (i,0)))\<^sup>2))"sorry
+
+    have
 
 
 
