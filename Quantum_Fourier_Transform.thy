@@ -197,13 +197,13 @@ definition SWAP :: "nat \<Rightarrow> complex Matrix.mat" where
 "SWAP n \<equiv> Matrix.mat (2^n) (2^n) (\<lambda>(i,j). if (\<forall>k\<in>{0..<n}. (select_index n k i) = (select_index n (n-1-k) j)) 
                                             then 1 else 0)"
 
-primrec qft_single_qbit :: "nat \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> complex Matrix.vec \<Rightarrow> complex Matrix.vec" where
-  "qft_single_qbit n i 0 v = (Id i \<Otimes> H \<Otimes> Id (n-i-1)) * |v\<rangle>"
-| "qft_single_qbit n i (Suc m) v = (CR n i (i+m+1)) * |qft_single_qbit n i m v\<rangle>"
+primrec qft_single_qubit :: "nat \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> complex Matrix.vec \<Rightarrow> complex Matrix.vec" where
+  "qft_single_qubit n i 0 v = (Id i \<Otimes> H \<Otimes> Id (n-i-1)) * |v\<rangle>"
+| "qft_single_qubit n i (Suc m) v = (CR n i (i+m+1)) * |qft_single_qubit n i m v\<rangle>"
 
 primrec qft_no_swap :: "nat \<Rightarrow> nat \<Rightarrow> complex Matrix.vec \<Rightarrow> complex Matrix.vec" where
   "qft_no_swap n 0 v = v"
-| "qft_no_swap n (Suc m) v = qft_single_qbit n m (n-m-1) (qft_no_swap n m v)"
+| "qft_no_swap n (Suc m) v = qft_single_qubit n m (n-m-1) (qft_no_swap n m v)"
 
 definition qft :: "nat \<Rightarrow> complex Matrix.vec \<Rightarrow> complex Matrix.vec" where
 "qft n v = (SWAP n) * |qft_no_swap n n v\<rangle>"
@@ -496,61 +496,45 @@ qubits n2 f2 g2 \<Otimes> (qubits n3 f3 g3 \<Otimes> |Matrix.vec 2 (\<lambda>i. 
   qed
 qed
 
-lemma qft_single_qbit_result:
-  fixes n m::nat
-  shows "\<forall>t. t \<le> n-m-1 \<Longrightarrow> qft_single_qbit n m t (qubits n 
-         (\<lambda>j. (if j<m then sqrt(1/2) else (if select_index n j i then 0 else 1)))
-         (\<lambda>j. (if j<m then (root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(if select_index n (l+j) i then 1 else 0))*sqrt(1/2)) 
-                      else (if select_index n j i then 1 else 0)))) = qubits n 
-         (\<lambda>j. (if j\<le>m then sqrt(1/2) else (if select_index n j i then 0 else 1)))
-         (\<lambda>j. (if j<m then (root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(if select_index n (l+j) i then 1 else 0))*sqrt(1/2)) 
-               else (if j=m then (root (2^(n-m))^(\<Sum>l<(t+1). (2^(n-m-l))*(if select_index n (l+m) i then 1 else 0))*sqrt(1/2))
-                     else (if select_index n j i then 1 else 0))))"
-  using qft_single_qbit_def apply auto
-  sorry
-
-lemma qft_no_swap_of_unit_vec:
-  fixes v::"complex Matrix.vec"
-  assumes "v = unit_vec (2^n) i" and "i < 2^n"
-  shows "m \<le> n \<Longrightarrow> qft_no_swap n m v = qubits n 
-         (\<lambda>j. (if j<m then sqrt(1/2) else (if select_index n j i then 0 else 1)))
-         (\<lambda>j. (if j<m then (root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(if select_index n (l+j) i then 1 else 0))*sqrt(1/2)) 
-                      else (if select_index n j i then 1 else 0)))"
-proof (induction m)
-  case 0
-  define w where d0:"w = qubits n 
-         (\<lambda>j. (if j<0 then sqrt(1/2) else (if select_index n j i then 0 else 1)))
-         (\<lambda>j. (if j<0 then (root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(if select_index n (l+j) i then 1 else 0))*sqrt(1/2)) 
-                      else (if select_index n j i then 1 else 0)))"
-  have "qft_no_swap n 0 v = w"
-  proof
-    show "dim_vec (qft_no_swap n 0 v) = dim_vec w"
-      by (auto simp add: assms(1) d0)
-    show " \<And>j. j < dim_vec w \<Longrightarrow> (qft_no_swap n 0 v) $ j = w $ j"
-    proof-
-      fix j assume "j < dim_vec w"
-      moreover have "\<And>k l. k<n \<Longrightarrow> (if select_index n k l then if select_index n k i then 1 else 0 else complex_of_real (if select_index n k i then 0 else 1)) = 
-            (if (select_index n k l = select_index n k i) then 1 else 0)"
-        by simp
-      ultimately show "(qft_no_swap n 0 v) $ j = w $ j"
-        using qubits_rep
-        by (auto simp add: assms(1,2) d0 uniq_select_index)
-    qed
-  qed
-  then show "0 \<le> n \<Longrightarrow> qft_no_swap n 0 v = w" by simp
-next
-  case c0:(Suc m)
-  then have c1:"qft_no_swap n m v = qubits n 
-         (\<lambda>j. (if j<m then sqrt(1/2) else (if select_index n j i then 0 else 1)))
-         (\<lambda>j. (if j<m then (root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(if select_index n (l+j) i then 1 else 0))*sqrt(1/2)) 
-                      else (if select_index n j i then 1 else 0)))"
-    by simp
-  then show "qft_no_swap n (Suc m) v = qubits n 
-         (\<lambda>j. (if j<(Suc m) then sqrt(1/2) else (if select_index n j i then 0 else 1)))
-         (\<lambda>j. (if j<(Suc m) then (root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(if select_index n (l+j) i then 1 else 0))*sqrt(1/2)) 
-                      else (if select_index n j i then 1 else 0)))"
-    using qft_no_swap_def apply auto
+lemma temp: "(Id m \<Otimes> H \<Otimes> Id (n-m-1)) * qubits n 
+       (\<lambda>j. if j<m then sqrt(1/2) else 1 - bin_rep n i ! j)
+       (\<lambda>j. if j<m then (root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(bin_rep n i ! (l+j)))*sqrt(1/2)) 
+                   else bin_rep n i ! j) = qubits n 
+       (\<lambda>j. if j\<le>m then sqrt(1/2) else 1 - bin_rep n i ! j)
+       (\<lambda>j. if j<m then (root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(bin_rep n i ! (l+j)))*sqrt(1/2)) 
+            else (if j=m then (root (2^(n-m))^(\<Sum>l<(0+1). (2^(n-m-l))*(bin_rep n i ! (l+m)))*sqrt(1/2))
+                  else bin_rep n i ! j))"
+proof-
+  define v where d0:"v = qubits n 
+       (\<lambda>j. if j<m then sqrt(1/2) else 1 - bin_rep n i ! j)
+       (\<lambda>j. if j<m then (root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(bin_rep n i ! (l+j)))*sqrt(1/2)) 
+                   else bin_rep n i ! j)"
+  define w where d1:"w = qubits n 
+       (\<lambda>j. if j\<le>m then sqrt(1/2) else 1 - bin_rep n i ! j)
+       (\<lambda>j. if j<m then (root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(bin_rep n i ! (l+j)))*sqrt(1/2)) 
+            else (if j=m then (root (2^(n-m))^(\<Sum>l<(0+1). (2^(n-m-l))*(bin_rep n i ! (l+m)))*sqrt(1/2))
+                  else bin_rep n i ! j))"
+  have "v = qubits m (\<lambda>j. sqrt(1/2)) (\<lambda>j. root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(if select_index n (l+j) i then 1 else 0))*sqrt(1/2))"
     sorry
+  show "(Id m \<Otimes> H \<Otimes> Id (n-m-1)) * v = w" sorry
+qed
+
+lemma qft_single_qubit_result:
+  fixes n m t i::nat
+  shows "t \<le> n-m-1 \<Longrightarrow> qft_single_qubit n m t (qubits n 
+       (\<lambda>j. if j<m then sqrt(1/2) else 1 - bin_rep n i ! j)
+       (\<lambda>j. if j<m then (root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(bin_rep n i ! (l+j)))*sqrt(1/2)) 
+                   else bin_rep n i ! j)) = qubits n 
+       (\<lambda>j. if j\<le>m then sqrt(1/2) else 1 - bin_rep n i ! j)
+       (\<lambda>j. if j<m then (root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(bin_rep n i ! (l+j)))*sqrt(1/2)) 
+            else (if j=m then (root (2^(n-m))^(\<Sum>l<(t+1). (2^(n-m-l))*(bin_rep n i ! (l+m)))*sqrt(1/2))
+                  else bin_rep n i ! j))"
+proof(induction t)
+  case 0
+  then show ?case using temp qft_single_qubit_def by auto
+next
+  case (Suc t)
+  then show ?case sorry
 qed
 
 lemma select_index_eq_bin_rep:
@@ -571,6 +555,50 @@ semiring_normalization_rules(7))
     using bin_rep_index select_index_def assms bin_rep_eq
     by (smt div_less le0 le_eq_less_or_eq less_imp_of_nat_less linorder_neqE_nat mod_le_divisor nat_int 
 of_nat_1_eq_iff of_nat_diff one_le_power one_mod_two_eq_one power_eq_0_iff)
+qed
+
+lemma qft_no_swap_of_unit_vec:
+  fixes v::"complex Matrix.mat"
+  assumes "v = |unit_vec (2^n) i\<rangle>" and "i < 2^n"
+  shows "m \<le> n \<Longrightarrow> qft_no_swap n m v = qubits n 
+         (\<lambda>j. (if j<m then sqrt(1/2) else 1 - bin_rep n i ! j))
+         (\<lambda>j. (if j<m then (root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(bin_rep n i ! (l+j)))*sqrt(1/2)) 
+                      else bin_rep n i ! j))"
+proof (induction m)
+  case 0
+  define w where d0:"w = qubits n 
+         (\<lambda>j. (if j<0 then sqrt(1/2) else 1 - bin_rep n i ! j))
+         (\<lambda>j. (if j<0 then (root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(bin_rep n i ! (l+j)))*sqrt(1/2)) 
+                      else bin_rep n i ! j))"
+  have "qft_no_swap n 0 v = w"
+  proof
+    show "dim_vec (qft_no_swap n 0 (col_fst v)) = dim_vec (col_fst w)"
+      by (auto simp add: assms(1) d0 ket_vec_def)
+    show "\<And>i. i < dim_vec (col_fst w) \<Longrightarrow> qft_no_swap n 0 (col_fst v) $ i = col_fst w $ i"
+    proof-
+      fix x assume "x < dim_vec (col_fst w)"
+      moreover have "\<And>ia. ia<n \<Longrightarrow> (if select_index n ia i then of_nat (bin_rep n i ! ia) 
+                            else of_nat (Suc 0 - bin_rep n i ! ia)) = 1"
+        using select_index_eq_bin_rep by (auto simp add: assms(2))
+      ultimately show "qft_no_swap n 0 (col_fst v) $ x = col_fst w $ x"
+        using qubits_rep uniq_select_index[of "i" "n" "x"] prod.cong[of "{..<n}" "{..<n}" "\<lambda>ia. (if select_index n ia i then of_nat (bin_rep n i ! ia) else of_nat (Suc 0 - bin_rep n i ! ia))" "\<lambda>ia. 1"] 
+        by (auto simp add: assms(1,2) d0 ket_vec_def select_index_eq_bin_rep)
+    qed
+  qed
+  then show "0 \<le> n \<Longrightarrow> qft_no_swap n 0 v = w" by simp
+next
+  case c0:(Suc m)
+  then have c1:"qft_no_swap n m v = qubits n 
+         (\<lambda>j. (if j<m then sqrt(1/2) else 1 - bin_rep n i ! j))
+         (\<lambda>j. (if j<m then (root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(bin_rep n i ! (l+j)))*sqrt(1/2)) 
+                      else bin_rep n i ! j))"
+    by simp
+  then show "qft_no_swap n (Suc m) v = qubits n 
+         (\<lambda>j. (if j<(Suc m) then sqrt(1/2) else 1 - bin_rep n i ! j))
+         (\<lambda>j. (if j<(Suc m) then (root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(bin_rep n i ! (l+j)))*sqrt(1/2)) 
+                      else bin_rep n i ! j))"
+    using qft_no_swap_def apply auto
+    sorry
 qed
 
 lemma swap_of_qubits:
@@ -605,7 +633,7 @@ proof
     then have "j \<in> {0..<2^n}"
       by (simp add: fourier_def)
     then show "qft n v $ j = col_fst (fourier n * |v\<rangle>) $ j"
-      using qft_def qft_no_swap_of_unit_vec[of "v" "n" "i" "n"] fourier_def assms swap_of_qubits qubits_rep
+      using qft_def qft_no_swap_of_unit_vec[of "|v\<rangle>" "n" "i" "n"] fourier_def assms swap_of_qubits qubits_rep
       apply auto
       apply (auto simp add: ket_vec_def times_mat_def scalar_prod_def)
       sorry
@@ -641,7 +669,7 @@ lemma fourier_on_smult_vec_index:
   using assms times_mat_def scalar_prod_def smult_vec_def ket_vec_def fourier_def
   by (auto simp add: algebra_simps sum_distrib_left)
 
-lemma qft_single_qbit_of_smult_vec_index:
+lemma qft_single_qubit_of_smult_vec_index:
   fixes n i::"nat" and a::"complex" and v::"complex Matrix.vec"
   assumes "i < 2^n" and "dim_vec v = 2^n"
   shows "(qft n (a \<cdot>\<^sub>v v)) $ i = a * (qft n v) $ i"
