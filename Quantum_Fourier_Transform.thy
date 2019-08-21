@@ -4,6 +4,7 @@ imports
   Tensor
   More_Tensor
   Binary_Nat
+  Measurement
   FFT.FFT
 begin
 
