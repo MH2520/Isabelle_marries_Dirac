@@ -1,6 +1,7 @@
 theory Quantum_Prisoners_Dilemma
 imports
 More_Tensor
+Measurement
 begin
 
 
