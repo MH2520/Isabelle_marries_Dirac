@@ -514,7 +514,23 @@ proof-
        (\<lambda>j. if j<m then (root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(bin_rep n i ! (l+j)))*sqrt(1/2)) 
             else (if j=m then (root (2^(n-m))^(\<Sum>l<(0+1). (2^(n-m-l))*(bin_rep n i ! (l+m)))*sqrt(1/2))
                   else bin_rep n i ! j))"
-  have "v = qubits m (\<lambda>j. sqrt(1/2)) (\<lambda>j. root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(if select_index n (l+j) i then 1 else 0))*sqrt(1/2))"
+  have "\<forall>j<m. (sqrt(1/2)) = (if j<m then sqrt(1/2) else 1 - bin_rep n i ! j) \<and> 
+              (root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(bin_rep n i ! (l+j)))*sqrt(1/2)) = 
+              (if j<m then (root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(bin_rep n i ! (l+j)))*sqrt(1/2)) 
+                      else bin_rep n i ! j)"
+    by auto
+  moreover have "\<forall>j<n-m. (1 - bin_rep n i ! (j+m)) = (if (j+m)<m then sqrt(1/2) else 1 - bin_rep n i ! (j+m)) \<and> 
+                         (bin_rep n i ! (j+m)) = (if (j+m)<m then (root (2^(n-(j+m)))^(\<Sum>l<(n-(j+m)). (2^(n-(j+m)-l))*(bin_rep n i ! (l+(j+m))))*sqrt(1/2)) 
+                                                             else bin_rep n i ! (j+m))"
+    by auto
+  ultimately have "v = qubits m (\<lambda>j. sqrt(1/2)) (\<lambda>j. root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(bin_rep n i ! (l+j)))*sqrt(1/2)) \<Otimes>
+                       qubits (n-m) (\<lambda>j. 1 - bin_rep n i ! (j+m)) (\<lambda>j. bin_rep n i ! (j+m))"
+    using qubits_tensor_prod[of "n" "m" "n-m" "(\<lambda>j. sqrt(1/2))" 
+                             "(\<lambda>j. if j<m then sqrt(1/2) else 1 - bin_rep n i ! j)"
+                             "(\<lambda>j. root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(bin_rep n i ! (l+j)))*sqrt(1/2))"
+                             "(\<lambda>j. if j<m then (root (2^(n-j))^(\<Sum>l<(n-j). (2^(n-j-l))*(bin_rep n i ! (l+j)))*sqrt(1/2)) 
+                                   else bin_rep n i ! j)"
+                             "(\<lambda>j. 1 - bin_rep n i ! (j+m))" "(\<lambda>j. bin_rep n i ! (j+m))"] d0
     sorry
   show "(Id m \<Otimes> H \<Otimes> Id (n-m-1)) * v = w" sorry
 qed
