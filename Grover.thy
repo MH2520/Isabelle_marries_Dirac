@@ -29,12 +29,12 @@ lemma ket_one_is_state:
 locale grover =
   fixes f:: "nat \<Rightarrow> nat" and n::nat and x:: "nat" (*Would it be better to do it with *? *)
   fixes q_oracle :: "complex Matrix.mat" ("O")
-  assumes fun_dom: "f \<in> ({(i::nat). i < 2^n} \<rightarrow>\<^sub>E {0,1})"
+  assumes fun_dom: "f \<in> ({i::nat. i < 2^n} \<rightarrow>\<^sub>E {0,1})"
   assumes dim: "n\<ge>1"
-  assumes searched_dom: "x \<in> {(i::nat). i < 2^n}"
+  assumes searched_dom: "x \<in> {i::nat. i < 2^n}"
   assumes searched: "\<forall>i < 2^n. f(i) = 1 \<longleftrightarrow> i=x" 
   assumes q_oracle_app: "\<forall>(A::complex Matrix.mat). dim_row A = 2^n \<and> dim_col A = 1 \<longrightarrow>   
-                         O * (A \<Otimes> (H * |one\<rangle>)) = (Matrix.mat (2^n) 1 (\<lambda>(i,j). (-1)^f(i) * (A$$(i,j))))  \<Otimes> (H * |one\<rangle>)"
+                         O * (A \<Otimes> (H * |one\<rangle>)) = (Matrix.mat (2^n) 1 (\<lambda>(i,j). (-1)^f(i) * (A $$ (i,j)))) \<Otimes> (H * |one\<rangle>)"
   assumes q_oracle_gate: "gate (n+1) O"
 
 context grover
@@ -140,7 +140,7 @@ next
   fix i j:: nat
   assume a0: "i < dim_row D" and a1: "j < dim_col D"
   then have f0: "D\<^sup>\<dagger> $$ (i, j) = cnj(D $$ (j,i))" 
-    using hermite_cnj_def by (metis case_prod_conv index_mat(1) index_transpose_mat(3) transpose_of_diffusion)
+    using dagger_def by (metis case_prod_conv index_mat(1) index_transpose_mat(3) transpose_of_diffusion)
   show "D\<^sup>\<dagger> $$ (i, j) = D $$ (i, j)"
   proof(rule disjE)
     show "i=j \<or> i\<noteq>j" by auto
