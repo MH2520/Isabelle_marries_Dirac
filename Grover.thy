@@ -5,9 +5,6 @@ Authors:
 *)
 
 
-
-(*TODO: delete all \<alpha>, \<beta> from lemma names*)
-
 theory Grover
 imports                           
   More_Tensor
@@ -27,7 +24,7 @@ lemma ket_one_is_state:
   by (simp add: state_def ket_vec_def cpx_vec_length_def numerals(2))
 
 locale grover =
-  fixes f:: "nat \<Rightarrow> nat" and n::nat and x:: "nat" (*Would it be better to do it with *? *)
+  fixes f:: "nat \<Rightarrow> nat" and n::nat and x::nat
   fixes q_oracle :: "complex Matrix.mat" ("O")
   assumes fun_dom: "f \<in> ({i::nat. i < 2^n} \<rightarrow>\<^sub>E {0,1})"
   assumes dim: "n\<ge>1"
