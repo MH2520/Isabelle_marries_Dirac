@@ -276,19 +276,10 @@ proof-
 qed
 
 lemma (in grover) pow_2_n_half[simp]: (*Give better name*)
-  shows "2^n-2^(n-1) = (2::complex)^(n-1)" 
-proof (induction n rule: ind_from_1)
-  show "n\<ge>1" using dim by auto
-next
-  show "2^1-2^(1-1) = (2::complex)^(1-1)" by simp
-next
-  fix n
-  assume a0: "n\<ge>1" and IH: "2^n-2^(n-1) = (2::complex)^(n-1)"  
-  then have "2^(n+1)-2^n = (2::complex)*(2^n -2^(n-1))" by simp
-  also have "... = (2::complex)* 2^(n-1)" using IH by simp
-  also have "... = (2::complex)^n" 
-    using IH le_add_diff_inverse2 by auto
-  finally show "2^(Suc n)-2^((Suc n)-1) = (2::complex)^((Suc n)-1)" by simp
+  shows "2^n - 2^(n-1) = (2::complex)^(n-1)"
+proof-
+  have "2^((n-1)+1) = 2*(2^(n-1))" by simp
+  then show ?thesis using dim by simp
 qed
 
 lemma (in grover) app_diffusion_op:
