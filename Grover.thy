@@ -1448,19 +1448,9 @@ proof
            = 1/sqrt(2) * sqrt((\<Sum>i\<in>{0..<2^n}. (cmod (v $$ (i,0)))\<^sup>2))"sorry
   then have "sqrt(\<Sum>i\<in>{0..<2^(n+1)}. (cmod (v $$ (i div 2,0) * (H * |one\<rangle>) $$ (i mod 2,0)) )\<^sup>2)
            = sqrt((\<Sum>i\<in>{0..<2^n}. (cmod (v' $$ (i,0)))\<^sup>2))"sorry
-
-    have
-
-
-
-
-
-
-
-
-
-
-
+  show ?thesis
+    sorry
+qed
 
 
 end
